@@ -14,9 +14,9 @@ function storageAttachDatabase(db){phoneStorage.db=db;const unavailable=()=>{if(
 function storageErrorText(error){return error?.name==='QuotaExceededError'?'浏览器存储空间不足，内容仍保留在当前页面。':error?.name==='SecurityError'?'浏览器限制了本地保存，内容仍保留在当前页面。':'保存失败，内容仍保留在当前页面。'}
 function storageRenderStatus(){
   const failed=phoneStorage.phase==='error'||phoneStorage.phase==='blocked',pending=phoneStorage.busy||!!phoneStorage.pending;
-  storageBanner.classList.toggle('error',failed);storageBanner.classList.toggle('hide',!failed&&(!pending||phoneStorage.initializing));
+  storageBanner.classList.toggle('error',failed);storageBanner.classList.toggle('hide',!failed);
   if(failed)storageBanner.innerHTML='<strong>'+esc(phoneStorage.error)+'</strong><p>先保持页面打开，可以重试或导出备份。</p><div><button onclick="retryPhoneStorage()">重试保存</button><button onclick="exportBackup()">导出完整备份</button></div>';
-  else if(pending)storageBanner.innerHTML='<span class="storage-saving-dot"></span>正在保存到本机…';
+  else storageBanner.innerHTML='';
   const noteStatus=el('ntSaveStatus');if(noteStatus&&phoneStorage.mode==='indexeddb')noteStatus.textContent=failed?'尚未保存，请重试或导出备份':pending?'正在保存…':'已保存';
   const settingsStatus=el('phoneStorageSettingsStatus');if(settingsStatus)settingsStatus.textContent=phoneStorage.mode==='indexeddb'?(failed?'保存失败，请重试':pending?'正在保存到浏览器':'扩展存储 · 已保存到本机'):phoneStorage.mode==='localstorage'?'兼容模式 · 浏览器本地存储':'正在读取本机数据';
 }

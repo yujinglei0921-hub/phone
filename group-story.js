@@ -38,7 +38,7 @@ el('chatInput').addEventListener('click',event=>{
  event.phoneStoryHandled=true;event.preventDefault();const list=state.chats[story.contactId]??=[],id=story.runId+'-reply';
  if(!list.some(m=>m.id===id))list.push({id,from:'me',text:story.reply,at:Date.now()});
  story.phase='done';save();el('groupStoryNotice')?.remove();renderChat();el('chatInput').blur();
- if(story.trigger==='unlock'){scheduleContactAutoReply(story.contactId);storyTrigger('message',story.reply,story.contactId)}
+ if(story.trigger==='unlock'){storyTrigger('message',story.reply,story.contactId)}
 });
 const groupStoryReset=resetIncomingCallFlows;
 resetIncomingCallFlows=()=>{groupStoryReset();clearTimeout(groupStoryTimer);el('groupStoryNotice')?.remove();if(state.groupChatStory){state.groupChatStory.phase='idle';delete state.groupChatStory.dueAt;delete state.groupChatStory.runId}};
