@@ -2,10 +2,9 @@
 let incomingCall=null,incomingCallTimer,incomingRetryTimer,incomingDialogueTimer,incomingMessageTimer; 
 const incomingRingtone=new Audio('assets/wechat-ringtone.m4a');
 incomingRingtone.preload='auto';incomingRingtone.loop=true;
-let incomingRingtonePrimed=false;
 function stopIncomingRingtone(){incomingRingtone.pause();incomingRingtone.currentTime=0;el('incomingRingtonePlay')?.remove()}
 function startIncomingRingtone(){
- if(!incomingCall||incomingCall.answeredAt)return;
+ if(!incomingCall||incomingCall.answeredAt||!el('incomingCallScreen'))return;
  const call=incomingCall;incomingRingtone.muted=false;
  incomingRingtone.play().then(()=>{if(incomingCall===call&&!call.answeredAt)el('incomingRingtonePlay')?.remove()}).catch(()=>{
   if(incomingCall!==call||call.answeredAt||el('incomingRingtonePlay'))return;
@@ -13,18 +12,12 @@ function startIncomingRingtone(){
   el('incomingCallScreen')?.append(button);
  });
 }
-function primeIncomingRingtone(){
- if(incomingCall){startIncomingRingtone();return}
- if(incomingRingtonePrimed)return;
- incomingRingtone.muted=true;
- incomingRingtone.play().then(()=>{
-  incomingRingtonePrimed=true;
-  if(!incomingCall||incomingCall.answeredAt)stopIncomingRingtone();
-  incomingRingtone.muted=false;
- }).catch(()=>{incomingRingtone.muted=false});
+function retryIncomingRingtone(){
+ if(incomingCall&&!incomingCall.answeredAt&&el('incomingCallScreen')&&incomingRingtone.paused)startIncomingRingtone();
 }
-document.addEventListener('pointerdown',primeIncomingRingtone,true);
-document.addEventListener('keydown',primeIncomingRingtone,true);
+incomingRingtone.addEventListener('play',()=>{if(!incomingCall||incomingCall.answeredAt||!el('incomingCallScreen'))stopIncomingRingtone()});
+document.addEventListener('pointerdown',retryIncomingRingtone,true);
+document.addEventListener('keydown',retryIncomingRingtone,true);
 const callFlowBaseDefaults=defaults,callFlowBaseNormalize=normalize;
 defaults=()=>{const d=callFlowBaseDefaults();d.callFlows={};return d};
 normalize=()=>{callFlowBaseNormalize();state.callFlows=state.callFlows&&typeof state.callFlows==='object'&&!Array.isArray(state.callFlows)?state.callFlows:{}};
