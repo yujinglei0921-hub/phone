@@ -113,3 +113,6 @@ python3 -m http.server 4173 --bind 0.0.0.0
 相机使用上传的自拍视频作为预览：打开自动播放、静音、循环、手机内联播放。`assets/selfie-preview.mp4` 为 H.264 兼容版本，已完全移除音轨，不会申请设备摄像头或麦克风权限。若浏览器阻止自动播放，可点按画面中的播放按钮。快门将当前视频帧存入本机相册；离开相机页面即移除视频，重新打开从头播放。部署时保留 assets 目录；单文件预览已内嵌视频，源码 ZIP 也包含视频文件。
 
 游玩版：运行 `python3 scripts/build-player.py` 生成根目录 `play.html`，以及 exports 中的 `Phone-Life-Play.html` 和 `Phone-Life-Play.zip`。游玩版内嵌当前发布快照与静音自拍视频，隐藏内容编辑、设置与剧情管理入口；备忘录只读，聊天历史不可编辑，仍支持剧情交互。初始剧情进度会重置并清除该次剧情生成的消息，原有编写内容保留。游玩版用独立的本机数据库保存进度，不影响编辑版。`重新开始` 仅重置游玩版。部署整个仓库后通过 `/play.html` 进入；单独部署游玩版 ZIP 时，里面的 index.html 即为网站首页。
+
+
+当前 Cloudflare 域名：`https://phonesimulator.omnizoo.workers.dev/`。编辑版入口为 `/`，游玩版入口为 `/play`（或 `/play.html`）。两个入口打开时均先显示锁屏，保留各自的本机进度。旧的 workers.dev 子域名不再使用。部署 GitHub main 最新提交后生效；改域名不会自动迁移旧域名下浏览器保存的进度。
