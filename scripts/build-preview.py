@@ -15,7 +15,7 @@ args = parser.parse_args()
 if args.share_scenario and not args.scenario:
     parser.error("--share-scenario requires --scenario")
 html = (ROOT / "index.html").read_text(encoding="utf-8")
-assets = ["index.html", "README.md", "scripts/build-preview.py", "scripts/private-scenario-bootstrap.js"]
+assets = ["index.html", "README.md", "scripts/build-preview.py", "scripts/private-scenario-bootstrap.js", "scripts/build-player.py", "player.js", "player.css"]
 if args.scenario:
     html = re.sub(r'<script id="publishedBackupData" type="application/json">.*?</script>', '', html, flags=re.S)
     html = html.replace('<script src="published-backup.js"></script>', '')
