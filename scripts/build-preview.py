@@ -46,13 +46,26 @@ if args.scenario:
     data = json.loads(args.scenario.read_text(encoding="utf-8"))
     if args.share_scenario:
         # An explicit publish command includes only the authored increment, never the original backup.
+        has_call_history_seed = "callHistorySeed" in data
+        call_flow = data.get("storyNode", {}).get("callFlow")
         data = {
             "id": data["id"], "sourceBackupName": "你自己的原始 JSON 备份",
             "identity": {"contactIds": [data["contactId"]]},
             "contactId": data["contactId"], "contactName": data["contactName"],
             "messages": [{k: m[k] for k in ("id", "from", "text", "at", "showTimestamp") if k in m} for m in data["messages"]],
             "storyNode": {k: data["storyNode"][k] for k in ("id", "title", "trigger", "contact", "action", "body") if k in data["storyNode"]},
+            "resetStoryNode": bool(data.get("resetStoryNode")),
+            "callHistorySeed": [{k: record[k] for k in ("id", "contactName", "number", "type", "status", "showTime") if k in record} for record in data.get("callHistorySeed", [])],
         }
+        if not has_call_history_seed:
+            data.pop("callHistorySeed", None)
+        if call_flow:
+            data["storyNode"]["callFlow"] = {
+                "retryDelayMs": call_flow.get("retryDelayMs", 3000),
+                "rejectMessagesAfter": call_flow.get("rejectMessagesAfter", 2),
+                "rejectMessages": list(call_flow.get("rejectMessages", [])),
+                "dialogue": [{"speaker": line.get("speaker", "caller"), "text": line["text"]} for line in call_flow.get("dialogue", [])],
+            }
     descriptor = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
     bootstrap = (ROOT / "scripts/private-scenario-bootstrap.js").read_text(encoding="utf-8")
     html = html.replace("</body>", '<script id="privateScenarioData" type="application/json">' + descriptor + '</script><script>' + bootstrap + '</script></body>')

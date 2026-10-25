@@ -50,7 +50,7 @@ async function retryPhoneStorage(){
 }
 function storageRestoreScreen(){
   activeChat='';activeGroup='';el('chatView').classList.remove('active');el('photoView').classList.remove('active');currentApp='';el('appScreen').classList.remove('active');el('shell').classList.remove('in-app','is-locked');el('lock').classList.remove('active');renderHome();
-  if(state.settings.locked)toggleLock(true);
+  if(state.settings.locked)toggleLock(true);document.dispatchEvent(new Event('phone-state-restored'));
 }
 async function initializePhoneStorage(){
   if(phoneStorage.db&&!phoneStorage.busy){phoneStorage.db.close();phoneStorage.db=null}
