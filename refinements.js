@@ -1,4 +1,18 @@
 'use strict';
+// Add the family contacts once without replacing existing contacts or chat history.
+function applyFamilyContacts(){
+ const marker='family-contacts-20261025-v1';
+ if(state.appliedScenarios?.[marker])return false;
+ for(const [id,name] of [['family-sister','姐'],['family-mother','妈'],['family-father','爸']]){
+  if(state.contacts.some(contact=>contact.name===name))continue;
+  state.contacts.push({id:state.contacts.some(contact=>contact.id===id)?uid():id,name,nickname:'',bio:'',relation:'家人',avatar:'',reply:''});
+ }
+ state.appliedScenarios={...state.appliedScenarios,[marker]:true};
+ return true;
+}
+document.addEventListener('phone-state-restored',()=>{
+ if(phoneStorage.mode!=='blocked'&&applyFamilyContacts())save();
+});
 // Migrate this authored change once, preserving later edits and unrelated story progress.
 function applyPhoneRefinements(){
  const marker='linlin-input-call-20261025-v1';if(state.appliedScenarios?.[marker])return false;
