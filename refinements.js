@@ -11,7 +11,9 @@ function applyFamilyContacts(){
  return true;
 }
 document.addEventListener('phone-state-restored',()=>{
- if(phoneStorage.mode!=='blocked'&&applyFamilyContacts())save();
+ if(phoneStorage.mode==='blocked')return;
+ const familyChanged=applyFamilyContacts(),chatChanged=applyAuthoredChatUpdate();
+ if(familyChanged||chatChanged)save();
 });
 // Migrate this authored change once, preserving later edits and unrelated story progress.
 function applyPhoneRefinements(){
