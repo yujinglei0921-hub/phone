@@ -29,7 +29,7 @@ const callFlowBaseDefaults=defaults,callFlowBaseNormalize=normalize;
 defaults=()=>{const d=callFlowBaseDefaults();d.callFlows={};return d};
 normalize=()=>{callFlowBaseNormalize();state.callFlows=state.callFlows&&typeof state.callFlows==='object'&&!Array.isArray(state.callFlows)?state.callFlows:{}};
 normalize();
-function incomingFlowConfig(nodeId){const config=state.story.nodes.find(n=>n.id===nodeId)?.callFlow;if(!config)return null;return {retryDelayMs:Math.min(60000,Math.max(1000,Number(config.retryDelayMs)||3000)),rejectMessagesAfter:Math.min(10,Math.max(1,Number(config.rejectMessagesAfter)||2)),rejectMessages:Array.isArray(config.rejectMessages)?config.rejectMessages.filter(x=>typeof x==='string'):[],dialogue:Array.isArray(config.dialogue)?config.dialogue.filter(x=>x&&typeof x.text==='string').map(x=>({speaker:x.speaker==='me'?'me':'caller',text:x.text})):[]}}
+function incomingFlowConfig(nodeId){const config=state.story.nodes.find(n=>n.id===nodeId)?.callFlow;if(!config)return null;return {maxDeclines:Number(config.maxDeclines)||0,rejectMessageBatches:Array.isArray(config.rejectMessageBatches)?config.rejectMessageBatches:[],retryDelayMs:Math.min(60000,Math.max(1000,Number(config.retryDelayMs)||3000)),rejectMessagesAfter:Math.min(10,Math.max(1,Number(config.rejectMessagesAfter)||2)),rejectMessages:Array.isArray(config.rejectMessages)?config.rejectMessages.filter(x=>typeof x==='string'):[],dialogue:Array.isArray(config.dialogue)?config.dialogue.filter(x=>x&&typeof x.text==='string').map(x=>({speaker:x.speaker==='me'?'me':'caller',text:x.text})):[]}}
 function canStartIncomingCall(nodeId=''){return !isLocked()&&!incomingCall&&!el('callScreen')&&!el('incomingCallScreen')&&!Object.values(state.callFlows).some(f=>f.nodeId!==nodeId&&['waiting','ringing','connected'].includes(f.status))}
 function incomingPhoneIcon(){return '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="currentColor" d="m13 7 8 10-5 6c3 5 5 7 10 10l6-5 10 8c-2 6-6 9-12 6C16 36 9 28 5 16 3 10 7 7 13 7Z"/></svg>'}
 function showIncomingCall(contactId,options={}){
@@ -40,6 +40,7 @@ function showIncomingCall(contactId,options={}){
  if(flow){flow.status=options.connected?'connected':'ringing';flow.nextRingAt=0;save()}
  incomingCall={contactId,name:contact.name,nodeId:config?nodeId:'',startedAt:Date.now(),answeredAt:0,previousFocus:document.activeElement};
  const screen=document.createElement('section');screen.id='incomingCallScreen';screen.className='incoming-call-screen';screen.setAttribute('role','dialog');screen.setAttribute('aria-modal','true');screen.setAttribute('aria-label',contact.name+'的来电');screen.innerHTML=`<div class="incoming-call-person">${avatar(contact)}<h1>${esc(contact.name)}</h1><p id="incomingCallStatus">邀请你语音通话</p><span class="incoming-call-service">微信语音通话</span></div><div id="incomingDialogue" class="incoming-dialogue hide"></div><div id="incomingCallActions" class="incoming-call-actions"><div><button class="incoming-call-button decline" aria-label="挂断来电" onclick="finishIncomingCall('declined')">${incomingPhoneIcon()}</button><span>挂断</span></div><div><button class="incoming-call-button answer" aria-label="接听来电" onclick="answerIncomingCall()">${incomingPhoneIcon()}</button><span>接听</span></div></div><p class="incoming-call-footnote">剧情模拟通话</p>`;
+ screen.addEventListener('click',event=>{if(incomingCall?.answeredAt&&!event.target.closest('button'))advanceIncomingDialogue()});screen.tabIndex=0;screen.addEventListener('keydown',event=>{if(incomingCall?.answeredAt&&!event.target.closest('button')&&['Enter',' '].includes(event.key)){event.preventDefault();advanceIncomingDialogue()}});
  el('shell').append(screen);el('shell').classList.add('incoming-call-active');screen.querySelector('.answer').focus();if(options.connected)answerIncomingCall(true);else startIncomingRingtone();return true;
 }
 function answerIncomingCall(resuming=false){
@@ -48,13 +49,21 @@ function answerIncomingCall(resuming=false){
 }
 function renderIncomingDialogue(){
  clearTimeout(incomingDialogueTimer);if(!incomingCall?.answeredAt)return;const config=incomingFlowConfig(incomingCall.nodeId),flow=state.callFlows[incomingCall.nodeId],box=el('incomingDialogue');if(!config?.dialogue.length||!flow){box.classList.add('hide');return}
- const index=Math.min(config.dialogue.length-1,Math.max(0,Number(flow.dialogueIndex)||0)),line=config.dialogue[index];box.classList.remove('hide');box.innerHTML=`<p class="incoming-dialogue-line" aria-live="polite">${esc(line.speaker==='caller'?incomingCall.name+'：'+line.text:line.text)}</p><button class="incoming-dialogue-next" aria-label="通话对话下一句" onclick="advanceIncomingDialogue()" ${index>=config.dialogue.length-1?'disabled':''}>${index>=config.dialogue.length-1?'最后一句':'下一句 ›'}</button>`;
- if(index<config.dialogue.length-1)incomingDialogueTimer=setTimeout(advanceIncomingDialogue,3000);
+ const index=Math.min(config.dialogue.length-1,Math.max(0,Number(flow.dialogueIndex)||0)),line=config.dialogue[index];box.classList.remove('hide');box.innerHTML=`<p class="incoming-dialogue-line" aria-live="polite">${esc(line.speaker==='caller'?incomingCall.name+'：'+line.text:line.text)}</p>`;
+ el('incomingCallScreen').setAttribute('aria-description',index<config.dialogue.length-1?'点按画面查看下一句，也可按回车或空格':'对话已结束，可挂断通话');
 }
 function advanceIncomingDialogue(){if(!incomingCall?.answeredAt)return;const config=incomingFlowConfig(incomingCall.nodeId),flow=state.callFlows[incomingCall.nodeId];if(!config||!flow||flow.dialogueIndex>=config.dialogue.length-1)return;flow.dialogueIndex++;save();renderIncomingDialogue()}
 function addDeclineMessages(flow,config){
- if(flow.messagesSent||flow.declines<config.rejectMessagesAfter)return;
- if(!flow.messageQueue){flow.messageQueue={index:0,nextAt:Date.now()+1000};save()}
+ const batches=config.rejectMessageBatches.length?config.rejectMessageBatches:[{after:config.rejectMessagesAfter,messages:config.rejectMessages}];
+ const batch=batches.find(item=>item.after===flow.declines);if(!batch||!batch.messages.length)return;
+ flow.messageQueue??={index:0,nextAt:Date.now()+1000,messages:[]};
+ const queue=flow.messageQueue;queue.messages??=[];
+ for(const [index,text] of batch.messages.entries()){
+  const id=flow.runId+'-decline-'+batch.after+'-'+index;
+  if(!queue.messages.some(message=>message.id===id))queue.messages.push({id,text});
+ }
+ if(flow.messagesSent)queue.nextAt=Date.now()+1000;
+ flow.messagesSent=false;save();
  resumeDeclineMessages();
 }
 function resumeDeclineMessages(){
@@ -63,9 +72,9 @@ function resumeDeclineMessages(){
  const queue=flow.messageQueue,config=incomingFlowConfig(flow.nodeId);
  incomingMessageTimer=setTimeout(()=>{
   if(!state.story.enabled||state.callFlows[flow.nodeId]!==flow)return;
-  const i=queue.index,id=flow.runId+'-decline-'+i,list=state.chats[flow.contactId]??=[];
-  if(i<config.rejectMessages.length&&!list.some(m=>m.id===id))list.push({id,from:'them',text:config.rejectMessages[i],at:Date.now()});
-  queue.index++;queue.nextAt=Date.now()+1000;flow.messagesSent=queue.index>=config.rejectMessages.length;save();
+  const i=queue.index,messages=queue.messages||config.rejectMessages.map((text,index)=>({id:flow.runId+'-decline-'+index,text})),message=messages[i],list=state.chats[flow.contactId]??=[];
+  if(message&&!list.some(m=>m.id===message.id))list.push({...message,from:'them',at:Date.now()});
+  queue.index++;queue.nextAt=Date.now()+1000;flow.messagesSent=queue.index>=messages.length;save();
   if(currentApp==='messages'){if(activeChat===flow.contactId)renderChat();else if(wcTab==='chats'&&!el('chatView').classList.contains('active'))wcRenderList()}
   resumeDeclineMessages();
  },Math.max(0,queue.nextAt-Date.now()));
@@ -73,7 +82,7 @@ function resumeDeclineMessages(){
 function finishIncomingCall(status){
  if(!incomingCall)return;stopIncomingRingtone();clearInterval(incomingCallTimer);clearTimeout(incomingDialogueTimer);const call=incomingCall,flow=state.callFlows[call.nodeId],config=incomingFlowConfig(call.nodeId);incomingCall=null;
  const seconds=call.answeredAt?Math.max(0,Math.floor((Date.now()-call.answeredAt)/1000)):0;state.callHistory.unshift({id:uid(),number:call.name,contactName:call.name,contactId:call.contactId,type:'incoming',status,at:call.startedAt,seconds});state.callHistory=state.callHistory.slice(0,100);
- if(flow&&config){if(call.answeredAt||status==='answered'){flow.status='completed';flow.nextRingAt=0}else{flow.declines++;flow.status='waiting';flow.nextRingAt=Date.now()+config.retryDelayMs;addDeclineMessages(flow,config)}}
+ if(flow&&config){if(call.answeredAt||status==='answered'){flow.status='completed';flow.nextRingAt=0}else{flow.declines++;flow.status=config.maxDeclines&&flow.declines>=config.maxDeclines?'completed':'waiting';flow.nextRingAt=flow.status==='waiting'?Date.now()+config.retryDelayMs:0;addDeclineMessages(flow,config)}}
  save();el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active');if(call.previousFocus?.isConnected)call.previousFocus.focus();if(flow?.status==='waiting')resumePendingIncomingCalls();
 }
 function resumePendingIncomingCalls(){

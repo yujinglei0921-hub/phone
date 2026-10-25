@@ -1,5 +1,11 @@
 # Phone Life · 我的故事手机
 
+## 最新霖霖剧情
+
+解锁后等待 15 秒，收到霖霖的「我到了」微信通知。打开霖霖单聊后点击输入框，自动发送一次「刚下课」，5 秒后收到来电。挂断后间隔 3 秒重拨：第二次挂断后逐条收到「你在哪」「许伟健」，第三次挂断后逐条收到「怎么不接电话」「你完了」，第四次挂断后结束重拨。任意一次接听并结束通话也会结束重拨。接听后的字幕通过点按通话画面推进，不自动跳句，也不显示「下一句」按钮。
+
+升级只重置这段剧情的进度，保留本机已有内容；刷新保留新进度。游玩版的「重新开始」或编辑版重置剧情可重新体验。
+
 ## Cloudflare Workers 自动部署
 
 仓库根目录的 `wrangler.jsonc` 定义静态资源部署。Cloudflare Builds 使用 `main` 分支、Root directory `/`、Build command 留空、Deploy command `npx wrangler deploy`。Wrangler 会自动运行 `node scripts/prepare-cloudflare.mjs`，将网站文件复制到 `dist/`；不上传 ZIP、Git 元数据或本地备份文件。根路径 `/` 是编辑版，`/play`（或 `/play.html`）是游玩版，`/assets/` 保留视频资源。

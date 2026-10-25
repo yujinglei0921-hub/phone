@@ -13,6 +13,9 @@ function groupStoryNotice(){
 }
 function resumeGroupStory(){
  clearTimeout(groupStoryTimer);el('groupStoryNotice')?.remove();const story=state.groupChatStory;if(!story||!state.story.enabled)return;
+ if(story.trigger==='unlock'&&story.phase==='idle'&&!isLocked()){
+  story.phase='waiting';story.runId=uid();story.dueAt=Date.now()+15000;save();
+ }
  if(story.phase==='reply'){groupStoryNotice();return}
  if(story.phase!=='waiting')return;
  groupStoryTimer=setTimeout(()=>{
@@ -27,12 +30,15 @@ function resumeGroupStory(){
  },Math.max(0,story.dueAt-Date.now()));
 }
 const groupStoryOpen=openGroupChat;
-openGroupChat=id=>{groupStoryOpen(id);const story=state.groupChatStory;if(story&&state.story.enabled&&activeGroup===id&&story.groupId===id&&story.phase==='idle'){story.phase='waiting';story.runId=uid();story.dueAt=Date.now()+5000;save();resumeGroupStory()}};
+openGroupChat=id=>{groupStoryOpen(id);const story=state.groupChatStory;if(story&&story.trigger!=='unlock'&&state.story.enabled&&activeGroup===id&&story.groupId===id&&story.phase==='idle'){story.phase='waiting';story.runId=uid();story.dueAt=Date.now()+5000;save();resumeGroupStory()}};
+const groupStoryUnlock=completeUnlock;
+completeUnlock=()=>{groupStoryUnlock();resumeGroupStory()};
 el('chatInput').addEventListener('click',event=>{
  const story=state.groupChatStory;if(!story||story.phase!=='reply'||!state.story.enabled||activeChat!==story.contactId||activeGroup||isLocked())return;
  event.phoneStoryHandled=true;event.preventDefault();const list=state.chats[story.contactId]??=[],id=story.runId+'-reply';
  if(!list.some(m=>m.id===id))list.push({id,from:'me',text:story.reply,at:Date.now()});
  story.phase='done';save();el('groupStoryNotice')?.remove();renderChat();el('chatInput').blur();
+ if(story.trigger==='unlock')storyTrigger('message',story.reply,story.contactId);
 });
 const groupStoryReset=resetIncomingCallFlows;
 resetIncomingCallFlows=()=>{groupStoryReset();clearTimeout(groupStoryTimer);el('groupStoryNotice')?.remove();if(state.groupChatStory){state.groupChatStory.phase='idle';delete state.groupChatStory.dueAt;delete state.groupChatStory.runId}};
