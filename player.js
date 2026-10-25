@@ -8,7 +8,7 @@ function playerClean(){
   if(playerBlocked.test(action)||/^editNote\(\)/.test(action))node.classList.add('player-hidden');
  }
  for(const input of document.querySelectorAll('input[type=file]'))input.closest('label')?.classList.add('player-hidden');
- for(const select of document.querySelectorAll('#appContent select'))(select.closest('.card')||select).classList.add('player-hidden');
+ for(const select of document.querySelectorAll('#appContent select'))if(!select.closest('.spotify-mode'))(select.closest('.card')||select).classList.add('player-hidden');
  for(const node of document.querySelectorAll('input[type=file],.nt-compose,.nt-editor-more,.nt-add-photo,.nt-date-control,#navAction,.camera-picker'))node.classList.add('player-hidden');
 }
 document.addEventListener('click',event=>{const node=event.target.closest('[onclick]');if(node&&playerBlocked.test(node.getAttribute('onclick').trim())){event.preventDefault();event.stopImmediatePropagation()}},true);
