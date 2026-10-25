@@ -4,7 +4,7 @@
 
 ## 打开
 
-解压后双击 `index.html`。请将 `index.html`、`ios.css`、`ios.js`、`wallpaper.js`、`weibo.js`、`wechat.js` 和 `notes.js` 保持在同一目录。也可将这七个文件部署到 GitHub Pages / Cloudflare Pages。
+解压后双击 `index.html`。请将 `index.html`、`ios.css`、`ios.js`、`wallpaper.js`、`weibo.js`、`wechat.js`、`notes.js` 和 `storage.js` 保持在同一目录。也可将这八个文件部署到 GitHub Pages / Cloudflare Pages。
 
 本地开发可运行：
 
@@ -67,7 +67,11 @@ python3 -m http.server 4173 --bind 0.0.0.0
 
 ## 保存和备份
 
-通过 `localStorage` 保存当前浏览器中的内容，沿用旧版 `phone-life-ios18-v1` 存储键和 JSON 备份格式，可导入旧版数据；新增字段会自动补齐。
+默认通过 IndexedDB 保存当前浏览器中的内容，避免壁纸、头像、照片占满较小的 localStorage 配额后连聊天文字也无法保存。启动时优先读取扩展存储，并自动迁移旧版 `phone-life-ios18-v1` 数据；旧 localStorage 副本不会主动删除。仍沿用原 JSON 备份格式，可导入旧版备份。
+
+保存会排队并等待数据库事务完成；失败时页面提示重试或导出备份，当前修改仍保留在页面中，旧的已保存快照不会被失败事务覆盖。存在未保存数据时会尽可能在关闭页面前提醒。若浏览器不支持 IndexedDB，会使用兼容存储模式并提示；若此前的数据无法读取，则先阻止编辑，避免以默认数据覆盖旧记录。浏览器本机空间仍有总容量限制，请定期备份。
+
+更新前请先导出旧版备份，勿清理浏览器数据。新旧版本的保存方式不同，建议后续持续使用新版。换文件路径或域名后未看到原内容时，可导入备份恢复。若部署源码，务必同时上传新增的 `storage.js`；也可将单文件 `Phone-Life.html` 重命名为 `index.html` 单独部署，避免漏传脚本。
 
 设置 → 导出完整备份 / 导入备份，包含联系人、聊天、照片、双壁纸、模拟密码、动态、网页、天气和剧情进度。导入会替换当前内容，建议先导出。图片会压缩保存，但仍受浏览器空间限制；请定期备份。
 
