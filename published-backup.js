@@ -2,7 +2,7 @@
 window.phonePublishedBackupReady=(async()=>{
  await phoneStorage.ready;
  const node=document.getElementById('publishedBackupData');if(!node)return;
- const backup=JSON.parse(node.textContent),release='published-backup-20261025-170805';
+ const backup=JSON.parse(node.textContent),release='published-backup-20261025-upload2';
  if(state.appliedScenarios?.[release]){toggleLock(true);return;}
  if(phoneStorage.mode==='blocked')throw Error('本机存储尚未就绪');
  if(backup.format!=='phone-life-ios18'||!storageValidateState(backup.data))throw Error('备份格式不正确');
