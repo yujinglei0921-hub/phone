@@ -35,7 +35,7 @@
       if(!save()){state=previous;panel('尚未保存，请检查存储提示后重试。');return false}
       while(phoneStorage.busy||phoneStorage.pending){if(phoneStorage.phase==='error'){panel('保存尚未完成，请先导出备份，再重试。');return false}await new Promise(resolve=>setTimeout(resolve,25))}
     }
-    el('privateScenarioPanel')?.remove();storageRestoreScreen();return true;
+    if(applyPhoneRefinements())save();el('privateScenarioPanel')?.remove();storageRestoreScreen();return true;
   }
   const baseImport=el('backupInput').onchange;
   el('backupInput').onchange=async event=>{

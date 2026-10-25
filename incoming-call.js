@@ -65,3 +65,8 @@ document.addEventListener('keydown',event=>{if(!incomingCall)return;if(event.key
 function callHistoryLabel(call){if(call.status==='missed')return '未接';if(call.status==='declined')return '已挂断';return call.type==='incoming'?'接通':'拨出'}
 renderCalls=()=>{nav('通话记录');el('appContent').innerHTML=`<h1 class="bigtitle">最近通话</h1><div class="card call-history-card">${state.callHistory.map((c,i)=>`<button class="item call-history-row ${c.status==='missed'?'missed':''}" onclick="selectCallHistory(${i})"><span class="call-history-direction">${c.type==='incoming'?'↙':'↗'}</span><span class="grow"><strong>${esc(c.contactName||c.number)}<span class="call-history-label">（${callHistoryLabel(c)}）</span></strong>${c.showTime===false?'':`<p>${esc(new Date(c.at).toLocaleString('zh-CN'))} · ${c.seconds||0} 秒</p>`}</span><span class="chev">ⓘ</span></button>`).join('')||'<p class="muted">暂无模拟通话</p>'}</div><button class="secondary-btn" onclick="renderPhone()">返回拨号</button>`};
 function selectCallHistory(index){const call=state.callHistory[index];if(!call)return;if(call.type==='incoming'&&state.contacts.some(c=>c.id===call.contactId)){openApp('messages');openChat(call.contactId)}else{dialNumber=String(call.number||'');renderPhone()}}
+
+function startStoryIncomingCall(node){
+ if(Number(node.delayMs)>0){state.callFlows[node.id]={nodeId:node.id,contactId:node.contact,runId:uid(),status:'waiting',declines:0,messagesSent:false,dialogueIndex:0,nextRingAt:Date.now()+Math.min(60000,Number(node.delayMs))};save();resumePendingIncomingCalls()}
+ else showIncomingCall(node.contact,{nodeId:node.id});
+}

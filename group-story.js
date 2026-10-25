@@ -30,7 +30,7 @@ const groupStoryOpen=openGroupChat;
 openGroupChat=id=>{groupStoryOpen(id);const story=state.groupChatStory;if(story&&state.story.enabled&&activeGroup===id&&story.groupId===id&&story.phase==='idle'){story.phase='waiting';story.runId=uid();story.dueAt=Date.now()+5000;save();resumeGroupStory()}};
 el('chatInput').addEventListener('click',event=>{
  const story=state.groupChatStory;if(!story||story.phase!=='reply'||!state.story.enabled||activeChat!==story.contactId||activeGroup||isLocked())return;
- event.preventDefault();const list=state.chats[story.contactId]??=[],id=story.runId+'-reply';
+ event.phoneStoryHandled=true;event.preventDefault();const list=state.chats[story.contactId]??=[],id=story.runId+'-reply';
  if(!list.some(m=>m.id===id))list.push({id,from:'me',text:story.reply,at:Date.now()});
  story.phase='done';save();el('groupStoryNotice')?.remove();renderChat();el('chatInput').blur();
 });

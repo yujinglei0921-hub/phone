@@ -64,7 +64,7 @@ if args.scenario:
             "identity": {"contactIds": [data["contactId"]]},
             "contactId": data["contactId"], "contactName": data["contactName"],
             "messages": [{k: m[k] for k in ("id", "from", "text", "at", "showTimestamp") if k in m} for m in data["messages"]],
-            "storyNode": {k: data["storyNode"][k] for k in ("id", "title", "trigger", "contact", "action", "body") if k in data["storyNode"]},
+            "storyNode": {k: data["storyNode"][k] for k in ("id", "title", "trigger", "contact", "action", "body", "keyword", "delayMs") if k in data["storyNode"]},
             "resetStoryNode": bool(data.get("resetStoryNode")),
             "callHistorySeed": [{k: record[k] for k in ("id", "contactName", "number", "type", "status", "showTime") if k in record} for record in data.get("callHistorySeed", [])],
         }
