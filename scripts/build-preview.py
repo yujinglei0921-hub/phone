@@ -37,6 +37,11 @@ def embed_script(match):
     name = match.group(1)
     assets.append(name)
     content = read_asset(name)
+    if name == "incoming-call.js":
+        ringtone = "assets/wechat-ringtone.m4a"
+        assets.append(ringtone)
+        encoded = base64.b64encode((ROOT / ringtone).read_bytes()).decode("ascii")
+        content = content.replace(ringtone, "data:audio/mp4;base64," + encoded)
     if name == "ios.js":
         video = "assets/selfie-preview.mp4"
         assets.append(video)

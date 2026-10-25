@@ -1,5 +1,30 @@
 'use strict';
 let incomingCall=null,incomingCallTimer,incomingRetryTimer,incomingDialogueTimer,incomingMessageTimer; 
+const incomingRingtone=new Audio('assets/wechat-ringtone.m4a');
+incomingRingtone.preload='auto';incomingRingtone.loop=true;
+let incomingRingtonePrimed=false;
+function stopIncomingRingtone(){incomingRingtone.pause();incomingRingtone.currentTime=0;el('incomingRingtonePlay')?.remove()}
+function startIncomingRingtone(){
+ if(!incomingCall||incomingCall.answeredAt)return;
+ const call=incomingCall;incomingRingtone.muted=false;
+ incomingRingtone.play().then(()=>{if(incomingCall===call&&!call.answeredAt)el('incomingRingtonePlay')?.remove()}).catch(()=>{
+  if(incomingCall!==call||call.answeredAt||el('incomingRingtonePlay'))return;
+  const button=document.createElement('button');button.id='incomingRingtonePlay';button.className='secondary-btn';button.textContent='点按播放铃声';button.onclick=startIncomingRingtone;
+  el('incomingCallScreen')?.append(button);
+ });
+}
+function primeIncomingRingtone(){
+ if(incomingCall){startIncomingRingtone();return}
+ if(incomingRingtonePrimed)return;
+ incomingRingtone.muted=true;
+ incomingRingtone.play().then(()=>{
+  incomingRingtonePrimed=true;
+  if(!incomingCall||incomingCall.answeredAt)stopIncomingRingtone();
+  incomingRingtone.muted=false;
+ }).catch(()=>{incomingRingtone.muted=false});
+}
+document.addEventListener('pointerdown',primeIncomingRingtone,true);
+document.addEventListener('keydown',primeIncomingRingtone,true);
 const callFlowBaseDefaults=defaults,callFlowBaseNormalize=normalize;
 defaults=()=>{const d=callFlowBaseDefaults();d.callFlows={};return d};
 normalize=()=>{callFlowBaseNormalize();state.callFlows=state.callFlows&&typeof state.callFlows==='object'&&!Array.isArray(state.callFlows)?state.callFlows:{}};
@@ -15,10 +40,10 @@ function showIncomingCall(contactId,options={}){
  if(flow){flow.status=options.connected?'connected':'ringing';flow.nextRingAt=0;save()}
  incomingCall={contactId,name:contact.name,nodeId:config?nodeId:'',startedAt:Date.now(),answeredAt:0,previousFocus:document.activeElement};
  const screen=document.createElement('section');screen.id='incomingCallScreen';screen.className='incoming-call-screen';screen.setAttribute('role','dialog');screen.setAttribute('aria-modal','true');screen.setAttribute('aria-label',contact.name+'的来电');screen.innerHTML=`<div class="incoming-call-person">${avatar(contact)}<h1>${esc(contact.name)}</h1><p id="incomingCallStatus">邀请你语音通话</p><span class="incoming-call-service">微信语音通话</span></div><div id="incomingDialogue" class="incoming-dialogue hide"></div><div id="incomingCallActions" class="incoming-call-actions"><div><button class="incoming-call-button decline" aria-label="挂断来电" onclick="finishIncomingCall('declined')">${incomingPhoneIcon()}</button><span>挂断</span></div><div><button class="incoming-call-button answer" aria-label="接听来电" onclick="answerIncomingCall()">${incomingPhoneIcon()}</button><span>接听</span></div></div><p class="incoming-call-footnote">剧情模拟通话</p>`;
- el('shell').append(screen);el('shell').classList.add('incoming-call-active');screen.querySelector('.answer').focus();if(options.connected)answerIncomingCall(true);return true;
+ el('shell').append(screen);el('shell').classList.add('incoming-call-active');screen.querySelector('.answer').focus();if(options.connected)answerIncomingCall(true);else startIncomingRingtone();return true;
 }
 function answerIncomingCall(resuming=false){
- if(!incomingCall||incomingCall.answeredAt)return;clearTimeout(incomingRetryTimer);const flow=state.callFlows[incomingCall.nodeId];incomingCall.answeredAt=resuming&&flow?.answeredAt?flow.answeredAt:Date.now();if(flow){flow.status='connected';flow.answeredAt=incomingCall.answeredAt;if(!resuming)flow.dialogueIndex=0;save()}
+ if(!incomingCall||incomingCall.answeredAt)return;stopIncomingRingtone();clearTimeout(incomingRetryTimer);const flow=state.callFlows[incomingCall.nodeId];incomingCall.answeredAt=resuming&&flow?.answeredAt?flow.answeredAt:Date.now();if(flow){flow.status='connected';flow.answeredAt=incomingCall.answeredAt;if(!resuming)flow.dialogueIndex=0;save()}
  el('incomingCallStatus').textContent='00:00';el('incomingCallActions').classList.add('connected');el('incomingCallActions').innerHTML=`<div><button class="incoming-call-button decline" aria-label="结束来电通话" onclick="finishIncomingCall('answered')">${incomingPhoneIcon()}</button><span>结束通话</span></div>`;el('incomingCallActions').querySelector('button').focus();incomingCallTimer=setInterval(()=>{if(!incomingCall)return;const seconds=Math.floor((Date.now()-incomingCall.answeredAt)/1000);el('incomingCallStatus').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')},250);renderIncomingDialogue();
 }
 function renderIncomingDialogue(){
@@ -46,7 +71,7 @@ function resumeDeclineMessages(){
  },Math.max(0,queue.nextAt-Date.now()));
 }
 function finishIncomingCall(status){
- if(!incomingCall)return;clearInterval(incomingCallTimer);clearTimeout(incomingDialogueTimer);const call=incomingCall,flow=state.callFlows[call.nodeId],config=incomingFlowConfig(call.nodeId);incomingCall=null;
+ if(!incomingCall)return;stopIncomingRingtone();clearInterval(incomingCallTimer);clearTimeout(incomingDialogueTimer);const call=incomingCall,flow=state.callFlows[call.nodeId],config=incomingFlowConfig(call.nodeId);incomingCall=null;
  const seconds=call.answeredAt?Math.max(0,Math.floor((Date.now()-call.answeredAt)/1000)):0;state.callHistory.unshift({id:uid(),number:call.name,contactName:call.name,contactId:call.contactId,type:'incoming',status,at:call.startedAt,seconds});state.callHistory=state.callHistory.slice(0,100);
  if(flow&&config){if(call.answeredAt||status==='answered'){flow.status='completed';flow.nextRingAt=0}else{flow.declines++;flow.status='waiting';flow.nextRingAt=Date.now()+config.retryDelayMs;addDeclineMessages(flow,config)}}
  save();el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active');if(call.previousFocus?.isConnected)call.previousFocus.focus();if(flow?.status==='waiting')resumePendingIncomingCalls();
@@ -57,7 +82,7 @@ function resumePendingIncomingCalls(){
  const attempt=()=>{if(!state.story.enabled||state.callFlows[flow.nodeId]!==flow)return;if(!canStartIncomingCall(flow.nodeId)){incomingRetryTimer=setTimeout(attempt,300);return}showIncomingCall(flow.contactId,{nodeId:flow.nodeId,connected:flow.status==='connected'})};
  incomingRetryTimer=setTimeout(attempt,flow.status==='waiting'?Math.max(0,(flow.nextRingAt||Date.now())-Date.now()):0);
 }
-function clearIncomingCallRuntime(){clearTimeout(incomingMessageTimer);clearTimeout(incomingRetryTimer);clearTimeout(incomingDialogueTimer);clearInterval(incomingCallTimer);incomingCall=null;el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active')}
+function clearIncomingCallRuntime(){stopIncomingRingtone();clearTimeout(incomingMessageTimer);clearTimeout(incomingRetryTimer);clearTimeout(incomingDialogueTimer);clearInterval(incomingCallTimer);incomingCall=null;el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active')}
 function resetIncomingCallFlows(){clearIncomingCallRuntime();state.callFlows={}}
 const callFlowBaseImport=el('backupInput').onchange;el('backupInput').onchange=async event=>{const previous=state;await callFlowBaseImport(event);if(state!==previous){clearIncomingCallRuntime();resumePendingIncomingCalls()}};
 document.addEventListener('phone-state-restored',resumePendingIncomingCalls);
