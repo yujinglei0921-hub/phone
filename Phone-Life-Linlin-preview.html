@@ -343,7 +343,7 @@ function wcRenderContacts(){el('appContent').innerHTML=wcHeader('联系人')+`<b
 function wcRenderStatic(tab){const me=tab==='me';el('appContent').innerHTML=wcHeader(me?'我':'发现',false)+(me?`<div class="wc-me-card">${avatar(state.profile)}<div><strong>${esc(state.profile.nickname||state.profile.name)}</strong><p>${esc(state.profile.bio)}</p></div></div>`:'<div class="wc-empty"><span class="wc-empty-icon">◈</span><p>发现</p></div>')}
 renderContacts=()=>currentApp==='messages'?renderWeChatTab('contacts'):wcBaseContacts();
 editContact=id=>{el('wechatMenu')?.remove();wcBaseEditContact(id);if(id)el('contactForm')?.querySelector('.row')?.insertAdjacentHTML('beforeend',`<button class="secondary-btn" type="button" data-id="${esc(id)}" onclick="manageSingleMessages(this.dataset.id)">编辑聊天记录</button>`);if(currentApp!=='messages')return;activeChat='';activeGroup='';el('appScreen').classList.add('wc-form-page');el('appContent').insertAdjacentHTML('afterbegin',wcSubHeader(id?'编辑联系人':'新增联系人',"renderWeChatTab('contacts')"));wcMount()};
-openChat=id=>{activeGroup='';wcBaseOpenChat(id);if(currentApp==='messages'){el('appScreen').classList.remove('wc-form-page');wcMount();if(activeChat===id)storyTrigger('chat',id)}};
+openChat=id=>{activeGroup='';wcBaseOpenChat(id);if(currentApp==='messages'){el('appScreen').classList.remove('wc-form-page');wcMount();if(activeChat===id&&!(state.groupChatStory?.phase==='reply'&&state.groupChatStory.contactId===id))storyTrigger('chat',id)}};
 closeChat=()=>{activeGroup='';wcBaseCloseChat();el('appScreen').classList.remove('wechat-chatting')};
 editActiveContact=()=>activeGroup?editGroup(activeGroup):(activeChat?manageSingleMessages(activeChat):wcBaseEditActive());
 function openGroupChat(id){const group=wcGroup(id);if(!group)return;activeChat='';activeGroup=id;el('wechatMenu')?.remove();el('chatName').textContent=group.name+'（'+(group.memberIds.length+1)+'）';el('chatAvatar').outerHTML=`<div id="chatAvatar">${wcGroupAvatar(group)}</div>`;el('chatView').classList.add('active');el('appScreen').classList.remove('wc-form-page');renderChat();wcMount()}
@@ -480,7 +480,7 @@ const ntBaseExport=exportBackup;exportBackup=()=>{if(ntDraft?.dirty&&!persistNot
 const ntBaseImport=el('backupInput').onchange;el('backupInput').onchange=async event=>{if(ntDraft?.dirty&&!persistNoteDraft())return;const before=state;await ntBaseImport(event);if(state!==before){clearTimeout(ntSaveTimer);ntDraft=null;if(currentApp==='notes')renderNotes()}};
 const ntBaseReset=resetAll;resetAll=()=>{const before=state;ntBaseReset();if(state!==before){clearTimeout(ntSaveTimer);ntDraft=null}};
 </script><script>'use strict';
-let incomingCall=null,incomingCallTimer,incomingRetryTimer,incomingDialogueTimer;
+let incomingCall=null,incomingCallTimer,incomingRetryTimer,incomingDialogueTimer,incomingMessageTimer; 
 const callFlowBaseDefaults=defaults,callFlowBaseNormalize=normalize;
 defaults=()=>{const d=callFlowBaseDefaults();d.callFlows={};return d};
 normalize=()=>{callFlowBaseNormalize();state.callFlows=state.callFlows&&typeof state.callFlows==='object'&&!Array.isArray(state.callFlows)?state.callFlows:{}};
@@ -510,8 +510,21 @@ function renderIncomingDialogue(){
 function advanceIncomingDialogue(){if(!incomingCall?.answeredAt)return;const config=incomingFlowConfig(incomingCall.nodeId),flow=state.callFlows[incomingCall.nodeId];if(!config||!flow||flow.dialogueIndex>=config.dialogue.length-1)return;flow.dialogueIndex++;save();renderIncomingDialogue()}
 function addDeclineMessages(flow,config){
  if(flow.messagesSent||flow.declines<config.rejectMessagesAfter)return;
- const list=state.chats[flow.contactId]??=[],now=Date.now();for(let i=0;i<config.rejectMessages.length;i++){const id=flow.runId+'-decline-'+i;if(!list.some(m=>m.id===id))list.push({id,from:'them',text:config.rejectMessages[i],at:now+i})}flow.messagesSent=true;
- if(currentApp==='messages'){if(activeChat===flow.contactId)renderChat();else if(wcTab==='chats'&&!el('chatView').classList.contains('active'))wcRenderList()}
+ if(!flow.messageQueue){flow.messageQueue={index:0,nextAt:Date.now()+1000};save()}
+ resumeDeclineMessages();
+}
+function resumeDeclineMessages(){
+ clearTimeout(incomingMessageTimer);if(!state.story.enabled)return;
+ const flow=Object.values(state.callFlows).find(f=>f.messageQueue&&!f.messagesSent&&incomingFlowConfig(f.nodeId));if(!flow)return;
+ const queue=flow.messageQueue,config=incomingFlowConfig(flow.nodeId);
+ incomingMessageTimer=setTimeout(()=>{
+  if(!state.story.enabled||state.callFlows[flow.nodeId]!==flow)return;
+  const i=queue.index,id=flow.runId+'-decline-'+i,list=state.chats[flow.contactId]??=[];
+  if(i<config.rejectMessages.length&&!list.some(m=>m.id===id))list.push({id,from:'them',text:config.rejectMessages[i],at:Date.now()});
+  queue.index++;queue.nextAt=Date.now()+1000;flow.messagesSent=queue.index>=config.rejectMessages.length;save();
+  if(currentApp==='messages'){if(activeChat===flow.contactId)renderChat();else if(wcTab==='chats'&&!el('chatView').classList.contains('active'))wcRenderList()}
+  resumeDeclineMessages();
+ },Math.max(0,queue.nextAt-Date.now()));
 }
 function finishIncomingCall(status){
  if(!incomingCall)return;clearInterval(incomingCallTimer);clearTimeout(incomingDialogueTimer);const call=incomingCall,flow=state.callFlows[call.nodeId],config=incomingFlowConfig(call.nodeId);incomingCall=null;
@@ -520,12 +533,12 @@ function finishIncomingCall(status){
  save();el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active');if(call.previousFocus?.isConnected)call.previousFocus.focus();if(flow?.status==='waiting')resumePendingIncomingCalls();
 }
 function resumePendingIncomingCalls(){
- clearTimeout(incomingRetryTimer);if(!state.story.enabled||incomingCall)return;
+ resumeDeclineMessages();clearTimeout(incomingRetryTimer);if(!state.story.enabled||incomingCall)return;
  const flow=Object.values(state.callFlows).find(f=>['waiting','ringing','connected'].includes(f.status)&&incomingFlowConfig(f.nodeId)&&state.contacts.some(c=>c.id===f.contactId));if(!flow)return;
  const attempt=()=>{if(!state.story.enabled||state.callFlows[flow.nodeId]!==flow)return;if(!canStartIncomingCall(flow.nodeId)){incomingRetryTimer=setTimeout(attempt,300);return}showIncomingCall(flow.contactId,{nodeId:flow.nodeId,connected:flow.status==='connected'})};
  incomingRetryTimer=setTimeout(attempt,flow.status==='waiting'?Math.max(0,(flow.nextRingAt||Date.now())-Date.now()):0);
 }
-function clearIncomingCallRuntime(){clearTimeout(incomingRetryTimer);clearTimeout(incomingDialogueTimer);clearInterval(incomingCallTimer);incomingCall=null;el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active')}
+function clearIncomingCallRuntime(){clearTimeout(incomingMessageTimer);clearTimeout(incomingRetryTimer);clearTimeout(incomingDialogueTimer);clearInterval(incomingCallTimer);incomingCall=null;el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active')}
 function resetIncomingCallFlows(){clearIncomingCallRuntime();state.callFlows={}}
 const callFlowBaseImport=el('backupInput').onchange;el('backupInput').onchange=async event=>{const previous=state;await callFlowBaseImport(event);if(state!==previous){clearIncomingCallRuntime();resumePendingIncomingCalls()}};
 document.addEventListener('phone-state-restored',resumePendingIncomingCalls);
@@ -533,6 +546,47 @@ document.addEventListener('keydown',event=>{if(!incomingCall)return;if(event.key
 function callHistoryLabel(call){if(call.status==='missed')return '未接';if(call.status==='declined')return '已挂断';return call.type==='incoming'?'接通':'拨出'}
 renderCalls=()=>{nav('通话记录');el('appContent').innerHTML=`<h1 class="bigtitle">最近通话</h1><div class="card call-history-card">${state.callHistory.map((c,i)=>`<button class="item call-history-row ${c.status==='missed'?'missed':''}" onclick="selectCallHistory(${i})"><span class="call-history-direction">${c.type==='incoming'?'↙':'↗'}</span><span class="grow"><strong>${esc(c.contactName||c.number)}<span class="call-history-label">（${callHistoryLabel(c)}）</span></strong>${c.showTime===false?'':`<p>${esc(new Date(c.at).toLocaleString('zh-CN'))} · ${c.seconds||0} 秒</p>`}</span><span class="chev">ⓘ</span></button>`).join('')||'<p class="muted">暂无模拟通话</p>'}</div><button class="secondary-btn" onclick="renderPhone()">返回拨号</button>`};
 function selectCallHistory(index){const call=state.callHistory[index];if(!call)return;if(call.type==='incoming'&&state.contacts.some(c=>c.id===call.contactId)){openApp('messages');openChat(call.contactId)}else{dialNumber=String(call.number||'');renderPhone()}}
+</script><script>'use strict';
+let groupStoryTimer;
+const groupStoryDefaults=defaults,groupStoryNormalize=normalize;
+defaults=()=>{const d=groupStoryDefaults();d.groupChatStory=null;return d};
+normalize=()=>{groupStoryNormalize();state.groupChatStory=state.groupChatStory&&typeof state.groupChatStory==='object'?state.groupChatStory:null};
+normalize();
+function groupStoryNotice(){
+ const story=state.groupChatStory;if(!story||story.phase!=='reply')return;
+ document.getElementById('groupStoryNotice')?.remove();
+ const notice=document.createElement('button');notice.id='groupStoryNotice';notice.className='story-notice';
+ notice.innerHTML=`<strong>微信 · ${esc(state.contacts.find(c=>c.id===story.contactId)?.name||'霖霖')}</strong>${esc(story.message)}`;
+ notice.onclick=()=>{notice.remove();if(isLocked())return;openApp('messages');openChat(story.contactId)};el('shell').append(notice);
+}
+function resumeGroupStory(){
+ clearTimeout(groupStoryTimer);el('groupStoryNotice')?.remove();const story=state.groupChatStory;if(!story||!state.story.enabled)return;
+ if(story.phase==='reply'){groupStoryNotice();return}
+ if(story.phase!=='waiting')return;
+ groupStoryTimer=setTimeout(()=>{
+  if(state.groupChatStory!==story||!state.story.enabled)return;
+  if(isLocked()){groupStoryTimer=setTimeout(resumeGroupStory,300);return}
+  const list=state.chats[story.contactId]??=[],id=story.runId+'-question';
+  if(!list.some(m=>m.id===id))list.push({id,from:'them',text:story.message,at:Date.now()});
+  story.phase='reply';save();
+  if(currentApp==='messages'&&activeChat===story.contactId)renderChat();
+  else if(currentApp==='messages'&&!activeChat&&!activeGroup)wcRenderList();
+  groupStoryNotice();
+ },Math.max(0,story.dueAt-Date.now()));
+}
+const groupStoryOpen=openGroupChat;
+openGroupChat=id=>{groupStoryOpen(id);const story=state.groupChatStory;if(story&&state.story.enabled&&activeGroup===id&&story.groupId===id&&story.phase==='idle'){story.phase='waiting';story.runId=uid();story.dueAt=Date.now()+5000;save();resumeGroupStory()}};
+el('chatInput').addEventListener('click',event=>{
+ const story=state.groupChatStory;if(!story||story.phase!=='reply'||!state.story.enabled||activeChat!==story.contactId||activeGroup||isLocked())return;
+ event.preventDefault();const list=state.chats[story.contactId]??=[],id=story.runId+'-reply';
+ if(!list.some(m=>m.id===id))list.push({id,from:'me',text:story.reply,at:Date.now()});
+ story.phase='done';save();el('groupStoryNotice')?.remove();renderChat();el('chatInput').blur();
+});
+const groupStoryReset=resetIncomingCallFlows;
+resetIncomingCallFlows=()=>{groupStoryReset();clearTimeout(groupStoryTimer);el('groupStoryNotice')?.remove();if(state.groupChatStory){state.groupChatStory.phase='idle';delete state.groupChatStory.dueAt;delete state.groupChatStory.runId}};
+const groupStoryResumeCalls=resumePendingIncomingCalls;
+resumePendingIncomingCalls=()=>{groupStoryResumeCalls();resumeGroupStory()};
+document.addEventListener('phone-state-restored',resumeGroupStory);
 </script><script>'use strict';
 // IndexedDB keeps large image-bearing snapshots out of localStorage's small per-origin quota.
 // A save is acknowledged visually only after the transaction completes. Failed writes retain
@@ -615,7 +669,7 @@ window.addEventListener('beforeunload',event=>{if(phoneStorage.busy||phoneStorag
 const storageBaseSettings=renderSettings;
 renderSettings=()=>{storageBaseSettings();const bytes=new Blob([JSON.stringify(state)]).size;el('appContent').querySelector('h1')?.insertAdjacentHTML('afterend',`<div class="card"><strong>本机数据存储</strong><p class="muted" id="phoneStorageSettingsStatus"></p><p class="muted">当前数据约 ${(bytes/1024/1024).toFixed(2)} MB。照片、壁纸与聊天使用浏览器扩展存储，数据仍保存在本机。</p><button class="secondary-btn" onclick="exportBackup()">导出完整备份</button></div>`);storageRenderStatus()};
 phoneStorage.ready=initializePhoneStorage();
-</script><script id="privateScenarioData" type="application/json">{"id": "linlin-chat-and-call-20261022-v2", "sourceBackupName": "你自己的原始 JSON 备份", "identity": {"contactIds": ["c2"]}, "contactId": "c2", "contactName": "霖霖", "messages": [{"id": "linlin-20261022-1", "from": "them", "text": "乐乐的屎好臭", "at": 1792679700000, "showTimestamp": true}, {"id": "linlin-20261022-2", "from": "them", "text": "我又要呕了", "at": 1792679700000}, {"id": "linlin-20261022-3", "from": "them", "text": "下次还是你去溜", "at": 1792679700000}, {"id": "linlin-20261022-4", "from": "them", "text": "去吃啥呢 我还没想好", "at": 1792683600000, "showTimestamp": true}, {"id": "linlin-20261022-5", "from": "them", "text": "算了 我先出门", "at": 1792683600000}, {"id": "linlin-20261022-6", "from": "them", "text": "我上车了", "at": 1792683900000, "showTimestamp": true}, {"id": "linlin-20261022-7", "from": "me", "text": "刚下课 你到哪了", "at": 1792684980000, "showTimestamp": true}], "storyNode": {"id": "linlin-incoming-call-20261022", "title": "打开霖霖聊天后收到来电", "trigger": "chat", "contact": "c2", "action": "call", "body": "", "callFlow": {"retryDelayMs": 3000, "rejectMessagesAfter": 2, "rejectMessages": ["你在哪", "许伟健", "怎么不接电话", "快接电话"], "dialogue": [{"speaker": "caller", "text": "我到了，你在哪里"}, {"speaker": "me", "text": "我马上下来"}, {"speaker": "caller", "text": "快点快点 我饿了"}]}}, "resetStoryNode": true, "callHistorySeed": [{"id": "authored-call-1", "contactName": "霖霖", "number": "霖霖", "type": "outgoing", "status": "outgoing", "showTime": false}, {"id": "authored-call-2", "contactName": "霖霖", "number": "霖霖", "type": "outgoing", "status": "outgoing", "showTime": false}, {"id": "authored-call-3", "contactName": "霖霖", "number": "霖霖", "type": "incoming", "status": "answered", "showTime": false}, {"id": "authored-call-4", "contactName": "姐", "number": "姐", "type": "outgoing", "status": "outgoing", "showTime": false}, {"id": "authored-call-5", "contactName": "邱鼎杰", "number": "邱鼎杰", "type": "incoming", "status": "answered", "showTime": false}, {"id": "authored-call-6", "contactName": "霖霖", "number": "霖霖", "type": "outgoing", "status": "outgoing", "showTime": false}, {"id": "authored-call-7", "contactName": "弄", "number": "弄", "type": "incoming", "status": "missed", "showTime": false}, {"id": "authored-call-8", "contactName": "妈", "number": "妈", "type": "incoming", "status": "answered", "showTime": false}], "conversationUpdates": [{"id": "qiu-f4-chat-edit-20261025-v1", "contactId": "c1", "contactName": "邱鼎杰", "messages": [{"id": "qiu-authored-1", "text": "你们到哪了", "at": 1789518900000, "from": "them", "showTimestamp": true}, {"id": "qiu-authored-2", "text": "快了 十分钟", "at": 1789518900000, "from": "me"}, {"id": "qiu-authored-3", "text": "今天拍4人别忘了", "at": 1792266000000, "from": "them", "showTimestamp": true}, {"id": "qiu-authored-4", "text": "又四个人 知道了", "at": 1792266000000, "from": "me"}], "groupId": "idmvnxjrueryv7i", "groupName": "垂涎F4+2", "groupMessages": [{"id": "f4-authored-1", "text": "ocean 沛恩 我觉得最后那个头纱的动作还是改掉好了", "at": 1786973700000, "from": "member", "showTimestamp": true, "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-authored-2", "text": "怎么了吗？", "at": 1786973700000, "from": "me"}, {"id": "f4-authored-3", "text": "感觉有一点点多了 我和导演组沟通了一下", "at": 1786973700000, "from": "member", "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-authored-4", "text": "哦。", "at": 1786974000000, "from": "member", "showTimestamp": true, "senderId": "c2", "senderName": "霖霖"}, {"id": "f4-authored-5", "text": "好。", "at": 1786974000000, "from": "me"}, {"id": "f4-authored-6", "text": "剧本我还在写！马上马上", "at": 1791612000000, "from": "member", "showTimestamp": true, "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-authored-7", "text": "okok", "at": 1791612000000, "from": "me"}, {"id": "f4-authored-8", "text": "收到", "at": 1791612000000, "from": "member", "senderId": "c2", "senderName": "霖霖"}]}]}</script><script>// Apply only the scenario explicitly declared by the page; full backups stay in the browser.
+</script><script id="privateScenarioData" type="application/json">{"id": "linlin-chat-and-call-20261022-v2", "sourceBackupName": "你自己的原始 JSON 备份", "identity": {"contactIds": ["c2"]}, "contactId": "c2", "contactName": "霖霖", "messages": [{"id": "linlin-20261022-1", "from": "them", "text": "乐乐的屎好臭", "at": 1792679700000, "showTimestamp": true}, {"id": "linlin-20261022-2", "from": "them", "text": "我又要呕了", "at": 1792679700000}, {"id": "linlin-20261022-3", "from": "them", "text": "下次还是你去溜", "at": 1792679700000}, {"id": "linlin-20261022-4", "from": "them", "text": "去吃啥呢 我还没想好", "at": 1792683600000, "showTimestamp": true}, {"id": "linlin-20261022-5", "from": "them", "text": "算了 我先出门", "at": 1792683600000}, {"id": "linlin-20261022-6", "from": "them", "text": "我上车了", "at": 1792683900000, "showTimestamp": true}, {"id": "linlin-20261022-7", "from": "me", "text": "刚下课 你到哪了", "at": 1792684980000, "showTimestamp": true}], "storyNode": {"id": "linlin-incoming-call-20261022", "title": "打开霖霖聊天后收到来电", "trigger": "chat", "contact": "c2", "action": "call", "body": "", "callFlow": {"retryDelayMs": 3000, "rejectMessagesAfter": 2, "rejectMessages": ["你在哪", "许伟健", "怎么不接电话", "快接电话"], "dialogue": [{"speaker": "caller", "text": "我到了，你在哪里"}, {"speaker": "me", "text": "我马上下来"}, {"speaker": "caller", "text": "快点快点 我饿了"}]}}, "resetStoryNode": true, "callHistorySeed": [{"id": "authored-call-1", "contactName": "霖霖", "number": "霖霖", "type": "outgoing", "status": "outgoing", "showTime": false}, {"id": "authored-call-2", "contactName": "霖霖", "number": "霖霖", "type": "outgoing", "status": "outgoing", "showTime": false}, {"id": "authored-call-3", "contactName": "霖霖", "number": "霖霖", "type": "incoming", "status": "answered", "showTime": false}, {"id": "authored-call-4", "contactName": "姐", "number": "姐", "type": "outgoing", "status": "outgoing", "showTime": false}, {"id": "authored-call-5", "contactName": "邱鼎杰", "number": "邱鼎杰", "type": "incoming", "status": "answered", "showTime": false}, {"id": "authored-call-6", "contactName": "霖霖", "number": "霖霖", "type": "outgoing", "status": "outgoing", "showTime": false}, {"id": "authored-call-7", "contactName": "弄", "number": "弄", "type": "incoming", "status": "missed", "showTime": false}, {"id": "authored-call-8", "contactName": "妈", "number": "妈", "type": "incoming", "status": "answered", "showTime": false}], "conversationUpdates": [{"id": "qiu-f4-chat-edit-20261025-v1", "contactId": "c1", "contactName": "邱鼎杰", "messages": [{"id": "qiu-authored-1", "text": "你们到哪了", "at": 1789518900000, "from": "them", "showTimestamp": true}, {"id": "qiu-authored-2", "text": "快了 十分钟", "at": 1789518900000, "from": "me"}, {"id": "qiu-authored-3", "text": "今天拍4人别忘了", "at": 1792266000000, "from": "them", "showTimestamp": true}, {"id": "qiu-authored-4", "text": "又四个人 知道了", "at": 1792266000000, "from": "me"}], "groupId": "idmvnxjrueryv7i", "groupName": "垂涎F4+2", "groupMessages": [{"id": "f4-authored-1", "text": "ocean 沛恩 我觉得最后那个头纱的动作还是改掉好了", "at": 1786973700000, "from": "member", "showTimestamp": true, "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-authored-2", "text": "怎么了吗？", "at": 1786973700000, "from": "me"}, {"id": "f4-authored-3", "text": "感觉有一点点多了 我和导演组沟通了一下", "at": 1786973700000, "from": "member", "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-authored-4", "text": "哦。", "at": 1786974000000, "from": "member", "showTimestamp": true, "senderId": "c2", "senderName": "霖霖"}, {"id": "f4-authored-5", "text": "好。", "at": 1786974000000, "from": "me"}, {"id": "f4-authored-6", "text": "剧本我还在写！马上马上", "at": 1791612000000, "from": "member", "showTimestamp": true, "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-authored-7", "text": "okok", "at": 1791612000000, "from": "me"}, {"id": "f4-authored-8", "text": "收到", "at": 1791612000000, "from": "member", "senderId": "c2", "senderName": "霖霖"}]}], "groupStoryUpdate": {"id": "group-split-and-story-20261025-v1", "groups": [{"id": "idmvnxk9xjkbh66", "name": "钱钱家2号宿舍", "messages": [{"id": "f4-authored-1", "text": "ocean 沛恩 我觉得最后那个头纱的动作还是改掉好了", "at": 1786973700000, "from": "member", "showTimestamp": true, "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-authored-2", "text": "怎么了吗？", "at": 1786973700000, "from": "me"}, {"id": "f4-authored-3", "text": "感觉有一点点多了 我和导演组沟通了一下", "at": 1786973700000, "from": "member", "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-authored-4", "text": "哦。", "at": 1786974000000, "from": "member", "showTimestamp": true, "senderId": "c2", "senderName": "霖霖"}, {"id": "f4-authored-5", "text": "好。", "at": 1786974000000, "from": "me"}]}, {"id": "idmvnxjrueryv7i", "name": "垂涎F4+2", "messages": [{"id": "f4-revised-1", "from": "member", "text": "剧本我还在写哦。阿星和邱邱有什么想法吗？", "at": 1791612000000, "showTimestamp": true, "senderId": "idmvnxinajmunq8", "senderName": "简"}, {"id": "f4-revised-2", "from": "member", "text": "我都可以呀", "at": 1791612000000, "senderId": "idmvnfyb6rt82d3", "senderName": "黄星"}, {"id": "f4-revised-3", "from": "member", "text": "给我写帅一点", "at": 1791612000000, "senderId": "c1", "senderName": "邱鼎杰"}, {"id": "f4-revised-4", "from": "member", "text": "再等等啊 等剧本好了就可以准备开机了", "at": 1791612000000, "senderId": "idmvnxj15atbwpd", "senderName": "弄"}, {"id": "f4-revised-5", "from": "me", "text": "🫡", "at": 1791612000000}, {"id": "f4-revised-6", "from": "member", "text": "期待期待", "at": 1791612000000, "senderId": "c1", "senderName": "邱鼎杰"}]}], "story": {"groupId": "idmvnxjrueryv7i", "contactId": "c2", "message": "你觉得啥时候能开", "reply": "不知道 悬", "phase": "idle"}}}</script><script>// Apply only the scenario explicitly declared by the page; full backups stay in the browser.
 (async()=>{
   const scenario=JSON.parse(document.getElementById('privateScenarioData').textContent);
   await phoneStorage.ready;
@@ -624,7 +678,8 @@ phoneStorage.ready=initializePhoneStorage();
   async function apply(){
     if(!matches(state))return false;
     const updates=(scenario.conversationUpdates||[]).filter(update=>!state.appliedScenarios?.[update.id]);
-    if(!state.appliedScenarios?.[scenario.id]||updates.length){
+    const groupUpdate=scenario.groupStoryUpdate&&!state.appliedScenarios?.[scenario.groupStoryUpdate.id]?scenario.groupStoryUpdate:null;
+    if(!state.appliedScenarios?.[scenario.id]||updates.length||groupUpdate){
       const previous=structuredClone(state),list=state.chats[scenario.contactId]||[];
       if(!state.appliedScenarios?.[scenario.id]){
       state.chats[scenario.contactId]=[...list,...scenario.messages.filter(m=>!list.some(old=>old.id===m.id))].sort((a,b)=>a.at-b.at);
@@ -641,6 +696,11 @@ phoneStorage.ready=initializePhoneStorage();
         state.chats[contact.id]=structuredClone(update.messages);
         group.messages=structuredClone(update.groupMessages);
         state.appliedScenarios={...state.appliedScenarios,[update.id]:true};
+      }
+      if(groupUpdate){
+        for(const update of groupUpdate.groups){const group=state.groups.find(g=>g.id===update.id&&g.name===update.name);if(!group){state=previous;panel('没有找到对应群组，请选择原始备份。');return false}group.messages=structuredClone(update.messages)}
+        state.groupChatStory=structuredClone(groupUpdate.story);
+        state.appliedScenarios={...state.appliedScenarios,[groupUpdate.id]:true};
       }
       if(!save()){state=previous;panel('尚未保存，请检查存储提示后重试。');return false}
       while(phoneStorage.busy||phoneStorage.pending){if(phoneStorage.phase==='error'){panel('保存尚未完成，请先导出备份，再重试。');return false}await new Promise(resolve=>setTimeout(resolve,25))}

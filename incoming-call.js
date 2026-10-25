@@ -1,5 +1,5 @@
 'use strict';
-let incomingCall=null,incomingCallTimer,incomingRetryTimer,incomingDialogueTimer;
+let incomingCall=null,incomingCallTimer,incomingRetryTimer,incomingDialogueTimer,incomingMessageTimer; 
 const callFlowBaseDefaults=defaults,callFlowBaseNormalize=normalize;
 defaults=()=>{const d=callFlowBaseDefaults();d.callFlows={};return d};
 normalize=()=>{callFlowBaseNormalize();state.callFlows=state.callFlows&&typeof state.callFlows==='object'&&!Array.isArray(state.callFlows)?state.callFlows:{}};
@@ -29,8 +29,21 @@ function renderIncomingDialogue(){
 function advanceIncomingDialogue(){if(!incomingCall?.answeredAt)return;const config=incomingFlowConfig(incomingCall.nodeId),flow=state.callFlows[incomingCall.nodeId];if(!config||!flow||flow.dialogueIndex>=config.dialogue.length-1)return;flow.dialogueIndex++;save();renderIncomingDialogue()}
 function addDeclineMessages(flow,config){
  if(flow.messagesSent||flow.declines<config.rejectMessagesAfter)return;
- const list=state.chats[flow.contactId]??=[],now=Date.now();for(let i=0;i<config.rejectMessages.length;i++){const id=flow.runId+'-decline-'+i;if(!list.some(m=>m.id===id))list.push({id,from:'them',text:config.rejectMessages[i],at:now+i})}flow.messagesSent=true;
- if(currentApp==='messages'){if(activeChat===flow.contactId)renderChat();else if(wcTab==='chats'&&!el('chatView').classList.contains('active'))wcRenderList()}
+ if(!flow.messageQueue){flow.messageQueue={index:0,nextAt:Date.now()+1000};save()}
+ resumeDeclineMessages();
+}
+function resumeDeclineMessages(){
+ clearTimeout(incomingMessageTimer);if(!state.story.enabled)return;
+ const flow=Object.values(state.callFlows).find(f=>f.messageQueue&&!f.messagesSent&&incomingFlowConfig(f.nodeId));if(!flow)return;
+ const queue=flow.messageQueue,config=incomingFlowConfig(flow.nodeId);
+ incomingMessageTimer=setTimeout(()=>{
+  if(!state.story.enabled||state.callFlows[flow.nodeId]!==flow)return;
+  const i=queue.index,id=flow.runId+'-decline-'+i,list=state.chats[flow.contactId]??=[];
+  if(i<config.rejectMessages.length&&!list.some(m=>m.id===id))list.push({id,from:'them',text:config.rejectMessages[i],at:Date.now()});
+  queue.index++;queue.nextAt=Date.now()+1000;flow.messagesSent=queue.index>=config.rejectMessages.length;save();
+  if(currentApp==='messages'){if(activeChat===flow.contactId)renderChat();else if(wcTab==='chats'&&!el('chatView').classList.contains('active'))wcRenderList()}
+  resumeDeclineMessages();
+ },Math.max(0,queue.nextAt-Date.now()));
 }
 function finishIncomingCall(status){
  if(!incomingCall)return;clearInterval(incomingCallTimer);clearTimeout(incomingDialogueTimer);const call=incomingCall,flow=state.callFlows[call.nodeId],config=incomingFlowConfig(call.nodeId);incomingCall=null;
@@ -39,12 +52,12 @@ function finishIncomingCall(status){
  save();el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active');if(call.previousFocus?.isConnected)call.previousFocus.focus();if(flow?.status==='waiting')resumePendingIncomingCalls();
 }
 function resumePendingIncomingCalls(){
- clearTimeout(incomingRetryTimer);if(!state.story.enabled||incomingCall)return;
+ resumeDeclineMessages();clearTimeout(incomingRetryTimer);if(!state.story.enabled||incomingCall)return;
  const flow=Object.values(state.callFlows).find(f=>['waiting','ringing','connected'].includes(f.status)&&incomingFlowConfig(f.nodeId)&&state.contacts.some(c=>c.id===f.contactId));if(!flow)return;
  const attempt=()=>{if(!state.story.enabled||state.callFlows[flow.nodeId]!==flow)return;if(!canStartIncomingCall(flow.nodeId)){incomingRetryTimer=setTimeout(attempt,300);return}showIncomingCall(flow.contactId,{nodeId:flow.nodeId,connected:flow.status==='connected'})};
  incomingRetryTimer=setTimeout(attempt,flow.status==='waiting'?Math.max(0,(flow.nextRingAt||Date.now())-Date.now()):0);
 }
-function clearIncomingCallRuntime(){clearTimeout(incomingRetryTimer);clearTimeout(incomingDialogueTimer);clearInterval(incomingCallTimer);incomingCall=null;el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active')}
+function clearIncomingCallRuntime(){clearTimeout(incomingMessageTimer);clearTimeout(incomingRetryTimer);clearTimeout(incomingDialogueTimer);clearInterval(incomingCallTimer);incomingCall=null;el('incomingCallScreen')?.remove();el('shell').classList.remove('incoming-call-active')}
 function resetIncomingCallFlows(){clearIncomingCallRuntime();state.callFlows={}}
 const callFlowBaseImport=el('backupInput').onchange;el('backupInput').onchange=async event=>{const previous=state;await callFlowBaseImport(event);if(state!==previous){clearIncomingCallRuntime();resumePendingIncomingCalls()}};
 document.addEventListener('phone-state-restored',resumePendingIncomingCalls);

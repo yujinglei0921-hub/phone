@@ -49,6 +49,7 @@ if args.scenario:
         has_call_history_seed = "callHistorySeed" in data
         call_flow = data.get("storyNode", {}).get("callFlow")
         conversation_updates = data.get("conversationUpdates", [])
+        group_update = data.get("groupStoryUpdate")
         data = {
             "id": data["id"], "sourceBackupName": "你自己的原始 JSON 备份",
             "identity": {"contactIds": [data["contactId"]]},
@@ -67,6 +68,12 @@ if args.scenario:
                 "rejectMessagesAfter": call_flow.get("rejectMessagesAfter", 2),
                 "rejectMessages": list(call_flow.get("rejectMessages", [])),
                 "dialogue": [{"speaker": line.get("speaker", "caller"), "text": line["text"]} for line in call_flow.get("dialogue", [])],
+            }
+        if group_update:
+            data["groupStoryUpdate"] = {
+                "id": group_update["id"],
+                "groups": [{"id": g["id"], "name": g["name"], "messages": [{k: m[k] for k in ("id", "from", "text", "at", "showTimestamp", "senderId", "senderName") if k in m} for m in g["messages"]]} for g in group_update["groups"]],
+                "story": {k: group_update["story"][k] for k in ("groupId", "contactId", "message", "reply", "phase")},
             }
     descriptor = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
     bootstrap = (ROOT / "scripts/private-scenario-bootstrap.js").read_text(encoding="utf-8")

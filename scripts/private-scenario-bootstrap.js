@@ -7,7 +7,8 @@
   async function apply(){
     if(!matches(state))return false;
     const updates=(scenario.conversationUpdates||[]).filter(update=>!state.appliedScenarios?.[update.id]);
-    if(!state.appliedScenarios?.[scenario.id]||updates.length){
+    const groupUpdate=scenario.groupStoryUpdate&&!state.appliedScenarios?.[scenario.groupStoryUpdate.id]?scenario.groupStoryUpdate:null;
+    if(!state.appliedScenarios?.[scenario.id]||updates.length||groupUpdate){
       const previous=structuredClone(state),list=state.chats[scenario.contactId]||[];
       if(!state.appliedScenarios?.[scenario.id]){
       state.chats[scenario.contactId]=[...list,...scenario.messages.filter(m=>!list.some(old=>old.id===m.id))].sort((a,b)=>a.at-b.at);
@@ -24,6 +25,11 @@
         state.chats[contact.id]=structuredClone(update.messages);
         group.messages=structuredClone(update.groupMessages);
         state.appliedScenarios={...state.appliedScenarios,[update.id]:true};
+      }
+      if(groupUpdate){
+        for(const update of groupUpdate.groups){const group=state.groups.find(g=>g.id===update.id&&g.name===update.name);if(!group){state=previous;panel('没有找到对应群组，请选择原始备份。');return false}group.messages=structuredClone(update.messages)}
+        state.groupChatStory=structuredClone(groupUpdate.story);
+        state.appliedScenarios={...state.appliedScenarios,[groupUpdate.id]:true};
       }
       if(!save()){state=previous;panel('尚未保存，请检查存储提示后重试。');return false}
       while(phoneStorage.busy||phoneStorage.pending){if(phoneStorage.phase==='error'){panel('保存尚未完成，请先导出备份，再重试。');return false}await new Promise(resolve=>setTimeout(resolve,25))}
