@@ -16,6 +16,8 @@ if args.share_scenario and not args.scenario:
 html = (ROOT / "index.html").read_text(encoding="utf-8")
 assets = ["index.html", "README.md", "scripts/build-preview.py", "scripts/private-scenario-bootstrap.js"]
 if args.scenario:
+    html = re.sub(r'<script id="publishedBackupData" type="application/json">.*?</script>', '', html, flags=re.S)
+    html = html.replace('<script src="published-backup.js"></script>', '')
     html = re.sub(r'<script id="privateScenarioData" type="application/json">.*?</script>', '', html, flags=re.S)
     html = html.replace('<script src="scripts/private-scenario-bootstrap.js"></script>', '')
 

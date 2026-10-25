@@ -2,6 +2,7 @@
 (async()=>{
   const scenario=JSON.parse(document.getElementById('privateScenarioData').textContent);
   await phoneStorage.ready;
+  if(window.phonePublishedBackupReady)await window.phonePublishedBackupReady;
   function matches(data){if(data.appliedScenarios?.[scenario.id])return true;return (!scenario.identity.profileName||data.profile?.name===scenario.identity.profileName)&&scenario.identity.contactIds.every(id=>data.contacts?.some(c=>c.id===id))&&data.contacts?.some(c=>c.id===scenario.contactId&&c.name===scenario.contactName)}
   function panel(message=''){let node=el('privateScenarioPanel');if(!node){node=document.createElement('section');node.id='privateScenarioPanel';node.className='private-scenario-panel';el('shell').append(node)}node.innerHTML=`<strong>载入你的故事版本</strong><p>请选择你刚才上传的原始备份：<br>${esc(scenario.sourceBackupName)}</p><p>照片和已有内容会保留，新对话与来电剧情会自动加入。文件只在当前浏览器读取。</p><button onclick="document.getElementById('backupInput').click()">选择原备份</button>${message?`<p role="status" class="private-scenario-error">${esc(message)}</p>`:''}`}
   async function apply(){
