@@ -12,7 +12,14 @@ const spotifyArtwork={
 };
 const spotifySummerAudio='assets/relian-xiaji.mp3';
 const spotifySummerPath=['assets','relian-xiaji.mp3'].join('/');
-function spotifyTrackSource(track){return track?.url===spotifySummerPath?spotifySummerAudio:track?.url||''}
+const spotifySakuraAudio='assets/yinghuacao.mp3';
+const spotifySakuraPath=['assets','yinghuacao.mp3'].join('/');
+function spotifyTrackSource(track){return track?.url===spotifySummerPath?spotifySummerAudio:track?.url===spotifySakuraPath?spotifySakuraAudio:track?.url||''}
+function applySpotifySakuraAudio(){
+ const marker='spotify-sakura-audio-20261025-v1';if(state.appliedScenarios?.[marker])return false;
+ const track=state.tracks.find(track=>track.title==='樱花草');if(!track)return false;
+ track.url=spotifySakuraPath;state.appliedScenarios={...state.appliedScenarios,[marker]:true};return true;
+}
 function applySpotifySummerAudio(){
  const marker='spotify-summer-audio-20261025-v1';if(state.appliedScenarios?.[marker])return false;
  const track=state.tracks.find(track=>track.title==='热恋夏季');if(!track)return false;
@@ -25,7 +32,7 @@ function applySpotifyPlaylist(){
  state.tracks=spotifySongs.map((title,index)=>({id:'spotify-liked-'+index,title,artist:index<5?'江衡、李沛恩':'',url:state.tracks.find(track=>track.title===title)?.url||'',mood:index<5?'Pop':'放松'}));
  state.appliedScenarios={...state.appliedScenarios,[marker]:true};activeTrack=0;audio.pause();audio.removeAttribute('src');return true;
 }
-document.addEventListener('phone-state-restored',()=>{if(phoneStorage.mode==='blocked')return;const playlistChanged=applySpotifyPlaylist(),audioChanged=applySpotifySummerAudio();if(playlistChanged||audioChanged)save()});
+document.addEventListener('phone-state-restored',()=>{if(phoneStorage.mode==='blocked')return;const playlistChanged=applySpotifyPlaylist(),audioChanged=applySpotifySummerAudio(),sakuraChanged=applySpotifySakuraAudio();if(playlistChanged||audioChanged||sakuraChanged)save()});
 function spotifyIsPlayer(){return document.documentElement.classList.contains('player-mode')}
 function spotifyCover(track,index,small=false){const artwork=spotifyArtwork[track?.title];return `<span class="sp-cover sp-cover-${index%4} ${small?'sp-cover-small':''}" aria-hidden="true">${artwork?`<img src="${esc(artwork)}" alt="" decoding="async">`:`<span>♫</span><b>${esc(track?.title?.slice(0,2)||'音乐')}</b>`}</span>`}
 function spotifyRows(){

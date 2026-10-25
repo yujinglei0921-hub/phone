@@ -52,10 +52,10 @@ def embed_script(match):
             mime = "image/webp" if cover.endswith(".webp") else "image/jpeg"
             encoded = base64.b64encode((ROOT / cover).read_bytes()).decode("ascii")
             content = content.replace(cover, "data:" + mime + ";base64," + encoded)
-        song = "assets/relian-xiaji.mp3"
-        assets.append(song)
-        encoded = base64.b64encode((ROOT / song).read_bytes()).decode("ascii")
-        content = content.replace(song, "data:audio/mpeg;base64," + encoded)
+        for song in ("assets/relian-xiaji.mp3", "assets/yinghuacao.mp3"):
+            assets.append(song)
+            encoded = base64.b64encode((ROOT / song).read_bytes()).decode("ascii")
+            content = content.replace(song, "data:audio/mpeg;base64," + encoded)
     if name == "incoming-call.js":
         ringtone = "assets/wechat-ringtone.m4a"
         assets.append(ringtone)
