@@ -29,8 +29,3 @@ const removedRedbook=icons.findIndex(x=>x[0]==='redbook');if(removedRedbook>=0)i
 const removedRedbookIcon=editableIconApps.indexOf('redbook');if(removedRedbookIcon>=0)editableIconApps.splice(removedRedbookIcon,1);
 const refinementOpenApp=openApp;openApp=id=>{if(id!=='redbook')refinementOpenApp(id)};
 const homeGesture=document.createElement('button');homeGesture.id='homeGesture';homeGesture.className='home-gesture';homeGesture.setAttribute('aria-label','上滑返回主屏幕');homeGesture.title='向上滑动返回主屏幕';el('shell').append(homeGesture);
-let homeGestureStart=null;
-homeGesture.addEventListener('pointerdown',event=>{homeGestureStart={x:event.clientX,y:event.clientY};homeGesture.setPointerCapture(event.pointerId)});
-homeGesture.addEventListener('pointerup',event=>{if(!homeGestureStart)return;const dy=homeGestureStart.y-event.clientY,dx=Math.abs(homeGestureStart.x-event.clientX);homeGestureStart=null;if(!isLocked()&&!incomingCall&&!el('callScreen')&&dy>24&&dx<100)homeScreen()});
-homeGesture.addEventListener('pointercancel',()=>{homeGestureStart=null});
-homeGesture.addEventListener('click',event=>{if(event.detail===0&&!isLocked()&&!incomingCall)homeScreen()});
