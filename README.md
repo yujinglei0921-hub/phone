@@ -4,7 +4,7 @@
 
 ## 打开
 
-解压后双击 `index.html`。请将 `index.html`、`ios.css`、`ios.js`、`wallpaper.js`、`weibo.js`、`wechat.js`、`notes.js` 和 `storage.js` 保持在同一目录。也可将这八个文件部署到 GitHub Pages / Cloudflare Pages。
+解压后双击 `index.html`。请将 `index.html`、`ios.css`、`ios.js`、`wallpaper.js`、`weibo.js`、`wechat.js`、`notes.js`、`incoming-call.js` 和 `storage.js` 保持在同一目录。也可将这九个文件部署到 GitHub Pages / Cloudflare Pages。
 
 本地开发可运行：
 
@@ -61,7 +61,7 @@ python3 -m http.server 4173 --bind 0.0.0.0
 2. 打开 Safari → 备忘录增加线索。
 3. 给指定联系人发送包含“我记得”的消息 → 收到下一条剧情消息。
 
-节点按列表顺序执行，只有第一个未完成的节点会监听触发条件。触发方式支持打开应用、发送关键词、手动推进；效果支持收到微信、追加备忘录、发布小红书或微博。可编辑、删除和调整节点顺序。
+节点按列表顺序执行，只有第一个未完成的节点会监听触发条件。触发方式支持打开应用、打开指定联系人的聊天、发送关键词、手动推进；效果支持收到微信、联系人来电、追加备忘录、发布小红书或微博。可编辑、删除和调整节点顺序。
 
 编辑完成后开启“剧情运行”。重置剧情进度会允许节点重新触发，但保留此前产生的手机内容。当前版本为顺序故事线编辑，尚不包含分支图和多结局条件系统。
 
@@ -82,3 +82,11 @@ python3 -m http.server 4173 --bind 0.0.0.0
 ## 生成单文件预览
 
 修改源文件后运行 `python3 scripts/build-preview.py`，会重新生成可独立打开的 `Phone-Life.html` 和部署用的 `Phone-Life-source.zip`。单文件已内嵌样式、脚本和默认图标，无需另外携带 JS 或 CSS。
+
+## 聊天来电剧情
+
+在故事线中选择“打开指定聊天”，选择对应联系人；效果选择“收到联系人来电”。开启剧情运行后，只有点开指定单聊才触发来电，微信首页、其他会话和聊天记录编辑均不会触发。
+
+来电界面使用联系人现有头像和姓名，支持接听、计时、拒绝和挂断；结束后回到聊天。通话是本地剧情模拟，不拨打真实电话、不访问麦克风。节点显示后计入已完成，重开聊天不会反复响起；重置剧情进度可重播。通话记录可在电话应用查看。
+
+个人剧情预览可使用 `python3 scripts/build-preview.py --scenario /path/to/private-scenario.json --output /workspace/exports/private-preview.html` 构建。它仅内嵌少量对话增量；首次打开选择原 JSON 备份后在浏览器本地合并，保留原照片与资料，不覆盖已应用剧情之后的后续编辑。私人输出必须保存在仓库外，默认构建不包含个人备份或剧情数据。
