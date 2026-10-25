@@ -37,6 +37,11 @@ def embed_script(match):
     name = match.group(1)
     assets.append(name)
     content = read_asset(name)
+    if name == "spotify.js":
+        song = "assets/relian-xiaji.mp3"
+        assets.append(song)
+        encoded = base64.b64encode((ROOT / song).read_bytes()).decode("ascii")
+        content = content.replace(song, "data:audio/mpeg;base64," + encoded)
     if name == "incoming-call.js":
         ringtone = "assets/wechat-ringtone.m4a"
         assets.append(ringtone)
