@@ -48,6 +48,7 @@ if args.scenario:
         # An explicit publish command includes only the authored increment, never the original backup.
         has_call_history_seed = "callHistorySeed" in data
         call_flow = data.get("storyNode", {}).get("callFlow")
+        conversation_updates = data.get("conversationUpdates", [])
         data = {
             "id": data["id"], "sourceBackupName": "你自己的原始 JSON 备份",
             "identity": {"contactIds": [data["contactId"]]},
@@ -59,6 +60,7 @@ if args.scenario:
         }
         if not has_call_history_seed:
             data.pop("callHistorySeed", None)
+        data["conversationUpdates"] = [{**{k: update[k] for k in ("id", "contactId", "contactName", "groupId", "groupName")}, **{key: [{k: m[k] for k in ("id", "from", "text", "at", "showTimestamp", "senderId", "senderName") if k in m} for m in update[key]] for key in ("messages", "groupMessages")}} for update in conversation_updates]
         if call_flow:
             data["storyNode"]["callFlow"] = {
                 "retryDelayMs": call_flow.get("retryDelayMs", 3000),
