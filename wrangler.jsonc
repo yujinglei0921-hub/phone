@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "phonesimulator",
+  "compatibility_date": "2025-01-01",
+  "build": {
+    "command": "node scripts/prepare-cloudflare.mjs"
+  },
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  }
+}

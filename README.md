@@ -1,5 +1,11 @@
 # Phone Life · 我的故事手机
 
+## Cloudflare Workers 自动部署
+
+仓库根目录的 `wrangler.jsonc` 定义静态资源部署。Cloudflare Builds 使用 `main` 分支、Root directory `/`、Build command 留空、Deploy command `npx wrangler deploy`。Wrangler 会自动运行 `node scripts/prepare-cloudflare.mjs`，将网站文件复制到 `dist/`；不上传 ZIP、Git 元数据或本地备份文件。根路径 `/` 是编辑版，`/play`（或 `/play.html`）是游玩版，`/assets/` 保留视频资源。
+
+推送后在 Cloudflare 的 Builds 中确认对应提交部署成功；推送成功本身不代表部署成功。
+
 基于原有 Phone Life HTML 扩展的 iOS 灵感交互式手机模拟器。所有功能在本地运行，不需要 API 密钥或后端。
 
 ## 打开
