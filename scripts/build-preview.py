@@ -37,6 +37,11 @@ def embed_script(match):
     name = match.group(1)
     assets.append(name)
     content = read_asset(name)
+    if name == "honor.js":
+        video = "assets/honor-launch.mp4"
+        assets.append(video)
+        encoded = base64.b64encode((ROOT / video).read_bytes()).decode("ascii")
+        content = content.replace(video, "data:video/mp4;base64," + encoded)
     if name == "spotify.js":
         for cover in sorted(set(re.findall(r'assets/spotify-covers/[a-z0-9-]+\.(?:jpg|webp)', content))):
             assets.append(cover)
