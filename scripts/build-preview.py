@@ -38,6 +38,10 @@ def embed_script(match):
     assets.append(name)
     content = read_asset(name)
     if name == "honor.js":
+        icon = "assets/honor-icon.png"
+        assets.append(icon)
+        encoded_icon = base64.b64encode((ROOT / icon).read_bytes()).decode("ascii")
+        content = content.replace(icon, "data:image/png;base64," + encoded_icon)
         video = "assets/honor-launch.mp4"
         assets.append(video)
         encoded = base64.b64encode((ROOT / video).read_bytes()).decode("ascii")

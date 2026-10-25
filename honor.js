@@ -1,7 +1,7 @@
 'use strict';
 const honorLaunchVideo='assets/honor-launch.mp4';
 if(!icons.some(icon=>icon[0]==='honor'))icons.push(['honor','王者荣耀','','linear-gradient(145deg,#f8dc8b,#b67a23 50%,#47351e)']);
-art.honor=svg('<path d="M6 13l8 6 10-12 10 12 8-6-5 23H11Z" fill="#f8dda0" stroke="#573a14" stroke-width="2"/><path d="M16 26h16M24 22v15M14 36h20" stroke="#573a14" stroke-width="3"/>');
+art.honor='<img class="honor-app-icon" src="assets/honor-icon.png" alt="">';
 let honorVideo=null;
 function honorCleanup(){
  if(honorVideo){honorVideo.pause();honorVideo.removeAttribute('src');honorVideo.load();honorVideo=null}
