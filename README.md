@@ -4,7 +4,7 @@
 
 ## 打开
 
-解压后双击 `index.html`。请将 `index.html`、`ios.css`、`ios.js`、`wallpaper.js`、`weibo.js`、`wechat.js`、`notes.js`、`incoming-call.js` 和 `storage.js` 保持在同一目录。也可将这九个文件部署到 GitHub Pages / Cloudflare Pages。
+解压后双击 `index.html`。请将 `index.html`、`ios.css`、`ios.js`、`wallpaper.js`、`weibo.js`、`wechat.js`、`notes.js`、`incoming-call.js` 和 `storage.js` 保持在同一目录。部署源码时，还需保留 `scripts/private-scenario-bootstrap.js` 的相对路径。建议直接部署完整仓库；也可将单文件 `Phone-Life.html` 重命名为 `index.html` 后单独部署。
 
 本地开发可运行：
 
@@ -89,6 +89,10 @@ python3 -m http.server 4173 --bind 0.0.0.0
 
 来电界面使用联系人现有头像和姓名，支持接听、计时、拒绝和挂断；结束后回到聊天。通话是本地剧情模拟，不拨打真实电话、不访问麦克风。节点显示后计入已完成，重开聊天不会反复响起；重置剧情进度可重播。通话记录可在电话应用查看。
 
-个人剧情预览可使用 `python3 scripts/build-preview.py --scenario /path/to/private-scenario.json --output /workspace/exports/private-preview.html` 构建。它仅内嵌少量对话增量；首次打开选择原 JSON 备份后在浏览器本地合并，保留原照片与资料，不覆盖已应用剧情之后的后续编辑。私人输出必须保存在仓库外，默认构建不包含个人备份或剧情数据。
+个人剧情预览可使用 `python3 scripts/build-preview.py --scenario /path/to/private-scenario.json --output /workspace/exports/private-preview.html` 构建。它仅内嵌少量对话增量；首次打开选择原 JSON 备份后在浏览器本地合并，保留原照片与资料，不覆盖已应用剧情之后的后续编辑。私人输出必须保存在仓库外，默认构建不包含完整个人备份。当前 `index.html` 已接入你要求的新增对话与来电规则；已有对应本机数据时自动合并，新浏览器先导入原始备份。
 
 需要提供外部下载时，可显式添加 `--share-scenario`：仅发布指定联系人名字、本次新增的对话与触发规则，不包含原始备份、角色身份信息、其他联系人列表、照片、壁纸或密码。构建前请确认这些新增内容可以公开。此模式输出可放进仓库；私人模式仍禁止写入公开仓库目录。
+
+## 当前项目入口
+
+继续使用原来的仓库即可。Cloudflare 连接本仓库时，重新部署 `main` 分支中的完整静态文件；首页 `index.html` 已包含本次指定对话和来电增量，重复打开不会重复添加。原有照片、头像、壁纸、密码和其他聊天仍从本机数据／导入备份读取，没有包含在公开仓库中。

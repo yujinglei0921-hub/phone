@@ -15,19 +15,28 @@ if args.share_scenario and not args.scenario:
     parser.error("--share-scenario requires --scenario")
 html = (ROOT / "index.html").read_text(encoding="utf-8")
 assets = ["index.html", "README.md", "scripts/build-preview.py", "scripts/private-scenario-bootstrap.js"]
+if args.scenario:
+    html = re.sub(r'<script id="privateScenarioData" type="application/json">.*?</script>', '', html, flags=re.S)
+    html = html.replace('<script src="scripts/private-scenario-bootstrap.js"></script>', '')
+
+def read_asset(name):
+    path = (ROOT / name).resolve()
+    if ROOT not in path.parents or not path.is_file():
+        raise ValueError(f"Invalid local asset: {name}")
+    return path.read_text(encoding="utf-8")
 
 def embed_style(match):
     name = match.group(1)
     assets.append(name)
-    return "<style>" + (ROOT / name).read_text(encoding="utf-8") + "</style>"
+    return "<style>" + read_asset(name) + "</style>"
 
 def embed_script(match):
     name = match.group(1)
     assets.append(name)
-    return "<script>" + (ROOT / name).read_text(encoding="utf-8") + "</script>"
+    return "<script>" + read_asset(name) + "</script>"
 
 html = re.sub(r'<link rel="stylesheet" href="([^"/]+\.css)">', embed_style, html)
-html = re.sub(r'<script src="([^"/]+\.js)"></script>', embed_script, html)
+html = re.sub(r'<script src="([^"]+\.js)"></script>', embed_script, html)
 if args.scenario:
     if not args.output:
         parser.error("--scenario requires --output")
