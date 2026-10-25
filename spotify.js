@@ -1,5 +1,15 @@
 'use strict';
 const spotifySongs=['热恋夏季','恋人未满','情非得已','氧化氢','晚风定义','海与天','我们能不能不分手','樱花草'];
+const spotifyArtwork={
+ '氧化氢':'assets/spotify-covers/yanghuaqing.webp',
+ '晚风定义':'assets/spotify-covers/wanfeng-dingyi.webp',
+ '樱花草':'assets/spotify-covers/yinghuacao.jpg',
+ '恋人未满':'assets/spotify-covers/lianren-weiman.jpg',
+ '情非得已':'assets/spotify-covers/qingfei-deyi.jpg',
+ '海与天':'assets/spotify-covers/hai-yu-tian.jpg',
+ '我们能不能不分手':'assets/spotify-covers/women-nengbuneng-bufenshou.jpg',
+ '热恋夏季':'assets/spotify-covers/relian-xiaji.jpg'
+};
 const spotifySummerAudio='assets/relian-xiaji.mp3';
 const spotifySummerPath=['assets','relian-xiaji.mp3'].join('/');
 function spotifyTrackSource(track){return track?.url===spotifySummerPath?spotifySummerAudio:track?.url||''}
@@ -17,7 +27,7 @@ function applySpotifyPlaylist(){
 }
 document.addEventListener('phone-state-restored',()=>{if(phoneStorage.mode==='blocked')return;const playlistChanged=applySpotifyPlaylist(),audioChanged=applySpotifySummerAudio();if(playlistChanged||audioChanged)save()});
 function spotifyIsPlayer(){return document.documentElement.classList.contains('player-mode')}
-function spotifyCover(track,index,small=false){return `<span class="sp-cover sp-cover-${index%4} ${small?'sp-cover-small':''}" aria-hidden="true"><span>♫</span><b>${esc(track?.title?.slice(0,2)||'音乐')}</b></span>`}
+function spotifyCover(track,index,small=false){const artwork=spotifyArtwork[track?.title];return `<span class="sp-cover sp-cover-${index%4} ${small?'sp-cover-small':''}" aria-hidden="true">${artwork?`<img src="${esc(artwork)}" alt="" decoding="async">`:`<span>♫</span><b>${esc(track?.title?.slice(0,2)||'音乐')}</b>`}</span>`}
 function spotifyRows(){
  let tracks=state.tracks.map((track,index)=>({track,index})).filter(({track})=>(!spotifyQuery||[track.title,track.artist].join(' ').toLowerCase().includes(spotifyQuery.toLowerCase()))&&(spotifyFilter==='全部'||track.mood===spotifyFilter));
  if(spotifySort==='title')tracks.sort((a,b)=>a.track.title.localeCompare(b.track.title,'zh-CN'));

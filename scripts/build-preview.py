@@ -38,6 +38,11 @@ def embed_script(match):
     assets.append(name)
     content = read_asset(name)
     if name == "spotify.js":
+        for cover in sorted(set(re.findall(r'assets/spotify-covers/[a-z0-9-]+\.(?:jpg|webp)', content))):
+            assets.append(cover)
+            mime = "image/webp" if cover.endswith(".webp") else "image/jpeg"
+            encoded = base64.b64encode((ROOT / cover).read_bytes()).decode("ascii")
+            content = content.replace(cover, "data:" + mime + ";base64," + encoded)
         song = "assets/relian-xiaji.mp3"
         assets.append(song)
         encoded = base64.b64encode((ROOT / song).read_bytes()).decode("ascii")
