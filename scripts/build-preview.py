@@ -4,6 +4,7 @@ import re
 import argparse
 import json
 import zipfile
+import base64
 
 ROOT = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser()
@@ -35,7 +36,13 @@ def embed_style(match):
 def embed_script(match):
     name = match.group(1)
     assets.append(name)
-    return "<script>" + read_asset(name) + "</script>"
+    content = read_asset(name)
+    if name == "ios.js":
+        video = "assets/selfie-preview.mp4"
+        assets.append(video)
+        encoded = base64.b64encode((ROOT / video).read_bytes()).decode("ascii")
+        content = content.replace("assets/selfie-preview.mp4", "data:video/mp4;base64," + encoded)
+    return "<script>" + content + "</script>"
 
 html = re.sub(r'<link rel="stylesheet" href="([^"/]+\.css)">', embed_style, html)
 html = re.sub(r'<script src="([^"]+\.js)"></script>', embed_script, html)

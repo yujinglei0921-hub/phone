@@ -112,10 +112,19 @@ async function uploadAppIcon(id,input){
 function previewIconZoom(id,value){const img=el('iconPreview-'+id)?.querySelector('img');if(img)img.style.transform=`scale(${Math.min(1.6,Math.max(1,Number(value)||1))})`}
 function saveIconZoom(id,value){const icon=state.appIcons[id];if(!icon)return;const previous=icon.zoom;icon.zoom=Math.min(1.6,Math.max(1,Number(value)||1));if(!save()){icon.zoom=previous;renderIconSettings();return}renderHome()}
 function resetAppIcon(id){const previous=state.appIcons[id];delete state.appIcons[id];if(!save()){state.appIcons[id]=previous;return}renderHome();renderIconSettings();toast('已还原默认图标')}
+const CAMERA_PREVIEW_URL='assets/selfie-preview.mp4';
 function renderCamera(){
   nav('相机');
   const latest=state.photos.at(-1);
-  el('appContent').innerHTML=`<div class="camera-simulator"><div class="camera-modes">照片</div><div class="camera-viewfinder">${latest?`<img src="${esc(latest.data)}" alt="最近保存的照片">`:'<div class="camera-empty"><span>◎</span><p>用手机，记录故事里的这一刻</p></div>'}<span class="camera-frame top-left"></span><span class="camera-frame top-right"></span><span class="camera-frame bottom-left"></span><span class="camera-frame bottom-right"></span></div><p class="camera-caption">${latest?'最近保存的照片 · 不是实时预览':'点按快门，在手机上拍照'}</p><div class="camera-bottom"><button class="camera-album" onclick="openApp('photos')" aria-label="打开相册">${latest?`<img src="${esc(latest.data)}" alt="">`:'▧'}</button><button class="camera-shutter" onclick="el('cameraCapture').click()" aria-label="拍摄照片"><span></span></button><label class="camera-picker">选择照片<input id="cameraPicker" type="file" accept="image/*" aria-label="选择照片保存到相册" onchange="saveCameraPhoto(this)"></label></div><input id="cameraCapture" type="file" accept="image/*" capture="environment" hidden onchange="saveCameraPhoto(this)"><p class="camera-caption">手机可调用系统相机；电脑通常打开文件选择器。</p></div>`;
+  el('appContent').innerHTML=`<div class="camera-simulator camera-selfie"><div class="camera-topbar"><span>ϟ</span><span>⌄</span><span>◎</span></div><div class="camera-viewfinder"><video id="selfiePreview" src="${CAMERA_PREVIEW_URL}" autoplay muted loop playsinline webkit-playsinline preload="auto" aria-label="自拍镜头预览"></video><button id="cameraPlay" class="camera-play hide" onclick="playSelfiePreview()">点按播放</button><span class="camera-selfie-zoom">1×</span></div><div class="camera-modes">照片</div><div class="camera-bottom"><button class="camera-album" onclick="openApp('photos')" aria-label="打开相册">${latest?`<img src="${esc(latest.data)}" alt="">`:'▧'}</button><button class="camera-shutter" onclick="captureSelfieFrame()" aria-label="保存自拍画面"><span></span></button><button class="camera-flip" onclick="restartSelfiePreview()" aria-label="重新播放自拍预览">⟳</button></div></div>`;
+  const video=el('selfiePreview');video.muted=true;video.defaultMuted=true;video.volume=0;video.addEventListener('volumechange',()=>{if(!video.muted||video.volume!==0){video.muted=true;video.volume=0}});playSelfiePreview();
+}
+function playSelfiePreview(){const video=el('selfiePreview');if(!video)return;video.muted=true;video.play().then(()=>el('cameraPlay')?.classList.add('hide')).catch(()=>el('cameraPlay')?.classList.remove('hide'))}
+function restartSelfiePreview(){const video=el('selfiePreview');if(video){video.currentTime=0;playSelfiePreview()}}
+function captureSelfieFrame(){
+ const video=el('selfiePreview');if(!video||video.readyState<2)return toast('画面加载中，请稍后再拍');
+ const canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0);
+ const photo={id:uid(),name:'自拍',data:canvas.toDataURL('image/jpeg',.9),at:Date.now()};state.photos.push(photo);if(!save()){state.photos.pop();return}toast('自拍画面已保存到相册');
 }
 async function saveCameraPhoto(input){
   const file=input.files[0];if(!file)return;
