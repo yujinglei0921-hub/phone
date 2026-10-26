@@ -50,3 +50,11 @@ function deleteCurrentNote(){if(!ntDraft||!confirm('删除这条备忘录及其�
 const ntBaseExport=exportBackup;exportBackup=()=>{if(ntDraft?.dirty&&!persistNoteDraft())return;return ntBaseExport()};
 const ntBaseImport=el('backupInput').onchange;el('backupInput').onchange=async event=>{if(ntDraft?.dirty&&!persistNoteDraft())return;const before=state;await ntBaseImport(event);if(state!==before){clearTimeout(ntSaveTimer);ntDraft=null;if(currentApp==='notes')renderNotes()}};
 const ntBaseReset=resetAll;resetAll=()=>{const before=state;ntBaseReset();if(state!==before){clearTimeout(ntSaveTimer);ntDraft=null}};
+
+const authoredPresentNote={"id":"authored-present-note-20261026-v1","title":"Present","body":"10.5\n又和他多了一个第一次\n\n2025.10.12\n从现在开始是全新的 江衡和李沛恩了。\n\n10.19\n这居然是98分吗 yes! 我以后一定寸步不离霖霖\n\n11.1\n一个人好不习惯 紧脏。。\n\n12.23\n给他准备了圣诞礼物 你要快乐\n\n2026.1.1\n又是新的一年 是我们的第二个新年\n也是第一个\n\n1.6\n一起去了迪士尼 一起做计划+1（要是就我们两个就更好了）\n\n2.6\n一起放了烟花 马上要回家过年了 想和他走 可是他不让。。\n明年我表现好点一定可以回去了吧\n\n3.14\n我们很认真的决定让乐乐有个妹妹\n\n4.3\n零点只有我们两个人 开心\n\n4.25\n你一定会陪我看细水长流 我陪你也可以 反正是我们\n\n5.10\n其实没吵架呀 反正我不承认 这次说什么我也要坚持半小时\n\n5.25\n好紧张 真的开ych了 还好是我们一起\n\n6.10\n其实这个vcr我是真的当婚礼小片拍的\n\n6.27\n赶紧直播完回家 我准备了surprise\n\n7.9\n全力学习⌚️人大法中 有人好讨厌\n\n7.14\n用粉丝的一句话“奖励乐茶是最幸福的一家四口\n\n8.13\n每天上课好累 回家跟老婆说要抱着睡才可以缓解疲劳","images":[],"pinned":false,"createdAt":1792978465463,"updatedAt":1792978465463};
+function applyPresentNote(){
+ const marker='present-note-20261026-v1';if(state.appliedScenarios?.[marker])return;
+ if(!state.noteEntries.some(note=>note.id===authoredPresentNote.id))state.noteEntries.push(structuredClone(authoredPresentNote));
+ state.appliedScenarios={...state.appliedScenarios,[marker]:true};save();
+}
+document.addEventListener('phone-state-restored',()=>{if(phoneStorage.mode!=='blocked')applyPresentNote()});
