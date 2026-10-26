@@ -2,22 +2,41 @@
 let incomingCall=null,incomingCallTimer,incomingRetryTimer,incomingDialogueTimer,incomingMessageTimer; 
 const incomingRingtone=new Audio('assets/wechat-ringtone.m4a');
 incomingRingtone.preload='auto';incomingRingtone.loop=true;
-function stopIncomingRingtone(){incomingRingtone.pause();incomingRingtone.currentTime=0;el('incomingRingtonePlay')?.remove()}
-function startIncomingRingtone(){
- if(!incomingCall||incomingCall.answeredAt||!el('incomingCallScreen'))return;
- const call=incomingCall;incomingRingtone.muted=false;
- incomingRingtone.play().then(()=>{if(incomingCall===call&&!call.answeredAt)el('incomingRingtonePlay')?.remove()}).catch(()=>{
-  if(incomingCall!==call||call.answeredAt||el('incomingRingtonePlay'))return;
-  const button=document.createElement('button');button.id='incomingRingtonePlay';button.className='secondary-btn';button.textContent='点按播放铃声';button.onclick=startIncomingRingtone;
-  el('incomingCallScreen')?.append(button);
- });
+let ringtoneContext=null,ringtoneBuffer=null,ringtoneSource=null,ringtoneGeneration=0;
+// Decode without playback. Permission is prepared with a silent buffer, never the ringtone.
+const ringtoneBufferReady=fetch(incomingRingtone.src).then(response=>{if(!response.ok)throw Error('Ringtone unavailable');return response.arrayBuffer()}).catch(()=>null);
+let ringtoneDecoded=null;
+function ringtoneIsRinging(){return !!incomingCall&&!incomingCall.answeredAt&&!!el('incomingCallScreen')}
+function stopIncomingRingtone(){
+ ringtoneGeneration++;incomingRingtone.pause();incomingRingtone.currentTime=0;
+ if(ringtoneSource){try{ringtoneSource.stop()}catch{}ringtoneSource.disconnect();ringtoneSource=null}
+ el('incomingRingtonePlay')?.remove();
 }
-function retryIncomingRingtone(){
- if(incomingCall&&!incomingCall.answeredAt&&el('incomingCallScreen')&&incomingRingtone.paused)startIncomingRingtone();
+function prepareIncomingRingtone(){
+ const Context=window.AudioContext||window.webkitAudioContext;
+ if(Context){
+  if(!ringtoneContext){
+   ringtoneContext=new Context();
+   const silence=ringtoneContext.createBufferSource();silence.buffer=ringtoneContext.createBuffer(1,1,ringtoneContext.sampleRate);silence.connect(ringtoneContext.destination);silence.start();
+   ringtoneDecoded=ringtoneBufferReady.then(bytes=>bytes?ringtoneContext.decodeAudioData(bytes):null).then(buffer=>{ringtoneBuffer=buffer;return buffer}).catch(()=>null);
+  }
+  if(ringtoneContext.state==='suspended')ringtoneContext.resume().then(()=>{if(ringtoneIsRinging())startIncomingRingtone()}).catch(()=>{});
+ }
+ if(ringtoneIsRinging()&&!ringtoneSource&&incomingRingtone.paused)startIncomingRingtone();
 }
-incomingRingtone.addEventListener('play',()=>{if(!incomingCall||incomingCall.answeredAt||!el('incomingCallScreen'))stopIncomingRingtone()});
-document.addEventListener('pointerdown',retryIncomingRingtone,true);
-document.addEventListener('keydown',retryIncomingRingtone,true);
+async function startIncomingRingtone(){
+ if(!ringtoneIsRinging()||ringtoneSource||!incomingRingtone.paused)return;
+ const call=incomingCall,generation=++ringtoneGeneration;
+ if(ringtoneDecoded)await ringtoneDecoded;
+ if(generation!==ringtoneGeneration||incomingCall!==call||!ringtoneIsRinging())return;
+ if(ringtoneContext?.state==='running'&&ringtoneBuffer){
+  const source=ringtoneContext.createBufferSource();source.buffer=ringtoneBuffer;source.loop=true;source.connect(ringtoneContext.destination);ringtoneSource=source;source.start();return;
+ }
+ incomingRingtone.muted=false;
+ try{await incomingRingtone.play()}catch{}
+}
+incomingRingtone.addEventListener('play',()=>{if(!ringtoneIsRinging())stopIncomingRingtone()});
+for(const event of ['pointerdown','touchend','click','keydown'])document.addEventListener(event,prepareIncomingRingtone,{capture:true,passive:true});
 const callFlowBaseDefaults=defaults,callFlowBaseNormalize=normalize;
 defaults=()=>{const d=callFlowBaseDefaults();d.callFlows={};return d};
 normalize=()=>{callFlowBaseNormalize();state.callFlows=state.callFlows&&typeof state.callFlows==='object'&&!Array.isArray(state.callFlows)?state.callFlows:{}};
