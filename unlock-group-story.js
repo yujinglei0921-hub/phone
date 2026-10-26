@@ -20,7 +20,19 @@ function correctF4QuestionText(){
  }
  state.appliedScenarios={...state.appliedScenarios,[marker]:true};save();
 }
+function removeSeededF4Messages(){
+ const marker='f4-remove-seeded-test-messages-20261026-v1';if(state.appliedScenarios?.[marker])return;
+ const prefixes=['idmvofjkqdmuys0','idmvogosj9iqpsn'];
+ const texts=['又有人骂我死了','呜呜呜呜姐姐','没事的没事的','他们都是坏蛋'];
+ for(const group of state.groups){
+  if(group.name!=='垂涎F4+2')continue;
+  group.messages=group.messages.filter(message=>!prefixes.some(prefix=>texts.some((text,index)=>message.id===prefix+'-f4-'+index&&message.text===text)));
+ }
+ if(prefixes.includes(state.unlockGroupStory?.runId))delete state.unlockGroupStory;
+ state.appliedScenarios={...state.appliedScenarios,[marker]:true};save();
+}
 function ensureUnlockGroupStory(){
+ removeSeededF4Messages();
  correctF4StorySenders();correctF4QuestionText();
  if(state.unlockGroupStory?.id==='f4-open-group-20261025-v2')return state.unlockGroupStory;
  const group=state.groups.find(group=>group.name==='垂涎F4+2');if(!group)return null;
