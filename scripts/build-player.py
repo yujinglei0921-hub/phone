@@ -9,8 +9,11 @@ m=re.search(r'(<script id="publishedBackupData" type="application/json">)(.*?)(<
 backup=json.loads(m[2]);data=backup['data']
 remove_prefixes=[f['runId'] for f in data.get('callFlows',{}).values() if f.get('runId')]
 if data.get('groupChatStory',{}).get('runId'):remove_prefixes.append(data['groupChatStory']['runId'])
+if data.get('unlockGroupStory',{}).get('runId'):remove_prefixes.append(data['unlockGroupStory']['runId'])
 for key,messages in data['chats'].items():data['chats'][key]=[x for x in messages if not any(str(x.get('id','')).startswith(prefix+'-') for prefix in remove_prefixes)]
-data['callFlows']={};data['story']['done']=[];data['story']['enabled']=True;data['settings']['autoReply']=False;data['settings']['locked']=True
+for group in data.get('groups',[]):group['messages']=[x for x in group.get('messages',[]) if not any(str(x.get('id','')).startswith(prefix+'-') for prefix in remove_prefixes)]
+data.pop('unlockGroupStory',None)
+data['callFlows']={};data['story']['done']=[];data['story']['enabled']=True;data['settings']['autoReply']=True;data['settings']['locked']=True
 if data.get('groupChatStory'):
  data['groupChatStory']['phase']='idle'
  for k in ['dueAt','runId']:data['groupChatStory'].pop(k,None)
