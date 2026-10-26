@@ -1,7 +1,18 @@
 'use strict';
-const unlockGroupStoryLines=[['弄','又有人骂我死了'],['弄','呜呜呜呜姐姐'],['黄星','没事的没事的'],['黄星','他们都是坏蛋']];
+const unlockGroupStoryLines=[['简','又有人骂我死了'],['简','呜呜呜呜姐姐'],['黄星','没事的没事的'],['黄星','他们都是坏蛋']];
 let unlockGroupStoryTimer,f4PrivateTimer;
+function correctF4StorySenders(){
+ const marker='f4-jian-sender-20261026-v1';if(state.appliedScenarios?.[marker])return;
+ const contact=state.contacts.find(contact=>contact.name==='简');if(!contact)return;
+ for(const group of state.groups)for(const message of group.messages){
+  if(/-f4-[01]$/.test(message.id)&&['又有人骂我死了','呜呜呜呜姐姐'].includes(message.text)&&message.senderName==='弄'){
+   message.senderId=contact.id;message.senderName=contact.name;
+  }
+ }
+ state.appliedScenarios={...state.appliedScenarios,[marker]:true};save();
+}
 function ensureUnlockGroupStory(){
+ correctF4StorySenders();
  if(state.unlockGroupStory?.id==='f4-open-group-20261025-v2')return state.unlockGroupStory;
  const group=state.groups.find(group=>group.name==='垂涎F4+2');if(!group)return null;
  const contact=state.contacts.find(contact=>contact.name==='霖霖');
