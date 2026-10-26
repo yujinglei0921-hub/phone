@@ -1,5 +1,6 @@
 'use strict';
 const unlockGroupStoryLines=[['简','又有人骂我死了'],['简','呜呜呜呜姐姐'],['黄星','没事的没事的'],['黄星','他们都是坏蛋']];
+const f4PrivateQuestion='你觉得啥时候能开机';
 let unlockGroupStoryTimer,f4PrivateTimer;
 function correctF4StorySenders(){
  const marker='f4-jian-sender-20261026-v1';if(state.appliedScenarios?.[marker])return;
@@ -11,8 +12,16 @@ function correctF4StorySenders(){
  }
  state.appliedScenarios={...state.appliedScenarios,[marker]:true};save();
 }
+function correctF4QuestionText(){
+ const marker='f4-question-kai-ji-20261026-v1';if(state.appliedScenarios?.[marker])return;
+ const contact=state.contacts.find(contact=>contact.name==='霖霖');if(!contact)return;
+ for(const message of state.chats[contact.id]||[]){
+  if(message.id?.endsWith('-f4-question')&&message.text==='你觉得啥时候能开')message.text=f4PrivateQuestion;
+ }
+ state.appliedScenarios={...state.appliedScenarios,[marker]:true};save();
+}
 function ensureUnlockGroupStory(){
- correctF4StorySenders();
+ correctF4StorySenders();correctF4QuestionText();
  if(state.unlockGroupStory?.id==='f4-open-group-20261025-v2')return state.unlockGroupStory;
  const group=state.groups.find(group=>group.name==='垂涎F4+2');if(!group)return null;
  const contact=state.contacts.find(contact=>contact.name==='霖霖');
@@ -28,7 +37,7 @@ function f4PrivateNotice(story){
  el('f4PrivateNotice')?.remove();
  if(isLocked()||story.privatePhase!=='reply'||story.privateDismissed)return;
  const notice=document.createElement('button');notice.id='f4PrivateNotice';notice.className='story-notice';
- notice.innerHTML='<strong>微信 · 霖霖</strong>你觉得啥时候能开';
+ notice.innerHTML=`<strong>微信 · 霖霖</strong>${esc(f4PrivateQuestion)}`;
  notice.onclick=()=>{story.privateDismissed=true;save();notice.remove();if(isLocked())return;openApp('messages');openChat(story.contactId)};
  el('shell').append(notice);
 }
@@ -49,7 +58,7 @@ function resumeUnlockGroupStory(){
   f4PrivateTimer=setTimeout(()=>{
    if(state.unlockGroupStory!==story||!state.story.enabled||isLocked())return;
    const list=state.chats[story.contactId]??=[],id=story.runId+'-f4-question';
-   if(!list.some(message=>message.id===id))list.push({id,from:'them',text:'你觉得啥时候能开',at:Date.now()});
+   if(!list.some(message=>message.id===id))list.push({id,from:'them',text:f4PrivateQuestion,at:Date.now()});
    story.privatePhase='reply';save();
    if(currentApp==='messages'){if(activeChat===story.contactId)renderChat();else if(!activeChat&&!activeGroup)wcRenderList()}
    f4PrivateNotice(story);
