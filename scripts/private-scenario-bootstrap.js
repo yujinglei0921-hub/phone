@@ -1,5 +1,5 @@
 // Apply only the scenario explicitly declared by the page; full backups stay in the browser.
-(async()=>{
+window.phoneScenarioReady=(async()=>{
   const scenario=JSON.parse(document.getElementById('privateScenarioData').textContent);
   await phoneStorage.ready;
   if(window.phonePublishedBackupReady)await window.phonePublishedBackupReady;

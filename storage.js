@@ -49,6 +49,7 @@ async function retryPhoneStorage(){
   phoneStorage.pending=null;phoneStorage.error='';if(save())storageRenderStatus();
 }
 function storageRestoreScreen(){
+  if(document.documentElement.classList.contains('phone-starting'))state.settings.locked=true;
   activeChat='';activeGroup='';el('chatView').classList.remove('active');el('photoView').classList.remove('active');currentApp='';el('appScreen').classList.remove('active');el('shell').classList.remove('in-app','is-locked');el('lock').classList.remove('active');renderHome();
   if(state.settings.locked)toggleLock(true);document.dispatchEvent(new Event('phone-state-restored'));
 }

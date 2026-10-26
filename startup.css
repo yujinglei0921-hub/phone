@@ -1,0 +1,5 @@
+html.phone-starting .shell{background:#101713!important}
+html.phone-starting .shell>*{visibility:hidden!important;pointer-events:none!important}
+html.phone-starting .shell::after{content:'🔒';position:absolute;inset:0;display:grid;place-items:center;font-size:26px;color:#fff;background:#101713;z-index:120}
+html.phone-start-error .shell::after{display:none}
+html.phone-start-error .shell>#phoneStorageLoader{visibility:visible!important;pointer-events:auto!important;z-index:125}
